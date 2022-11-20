@@ -1,0 +1,96 @@
+#!/bin/bash
+
+## 4C-TL
+## Copyright (c) 2015 
+## Author(s): Zhaoqiang Li
+## Contact:
+## This software is distributed without any guarantee under the terms of the BSD-3 licence.
+## See the LICENCE file for details
+
+##
+## Launcher of digest_genome.py script
+## Digest genome with first enzyme cut site and then build bowtie_index.
+##
+
+######## Help function ########
+function help {
+	echo -e "Description:\n\t Digest genome with first enzyme cut site and then build bowtie_index."
+	echo -e "\t\t -h: help document;"
+	echo -e "\t\t -n: first enzyme name;"
+	echo -e "\t\t -s: first enzyme cut site, \"^\"lable enzyme cut site;"
+	echo -e "\t\t -r: genome reference name;"
+	echo -e "\t\t -f: genome reference fasta file;"
+	echo -e "\t\t -o: output path of genome reduced result.default \"./\""
+	echo -e "Example:\n\t reduced_genome.sh -n NlaIII -s CATG^ -r mm10 -f /sdc2/LZQ/NGS/Data/Ref/mm10/mm10.fasta -o ./"
+
+}
+
+
+######## Extract commiad line options & value with getopts #########
+while getopts n:s:r:f:o:h opt
+do
+        case "$opt" in
+                h) help;exit;;
+                n) ENZ_nam=`echo $OPTARG`;;
+                s) ENZ_Seq=`echo $OPTARG`;;
+		r) Ref_nam=`echo $OPTARG`;;
+		f) Ref_Fa=`echo $OPTARG`;;
+		o) Out_Path=`echo $OPTARG`;;
+                [?]) help;exit;;
+        esac
+done
+
+if [ -z "$ENZ_nam" ]
+then
+	echo -e "EORRO:Enzyme name is null!!"
+	help
+	exit
+fi
+
+if [ -z "$ENZ_Seq" ]
+then
+        echo -e "EORRO:Enzyme sequence is null!!"
+	help
+	exit
+fi
+
+if [ -z "$Ref_nam" ]
+then
+        echo -e "EORRO:Reference name is null!!"
+	help
+	exit
+fi
+
+if [ -z "$Ref_Fa" ]
+then
+        echo -e "EORRO:Reference fasta is null!!"
+	help
+	exit
+fi
+
+if [ -z "$Out_Path" ]
+then
+        echo -e "EORRO:Output path is null!!"
+	Out_Path="."
+	echo -e "Outpath is current path"
+fi
+
+echo -e "\nBegin .......\n"
+
+#ENZ_nam='NlaIII'
+#ENZ_Seq='CATG^'
+#Ref_nam='mm10'
+#Ref_Fa=/sdc2/LZQ/NGS/Data/Ref/${Ref_nam}/${Ref_nam}.fasta
+
+mkdir -p $Out_Path
+######## Digest genome with first enzyme site cut ########
+digest_genome.py -r $ENZ_Seq -o $Out_Path/${Ref_nam}-${ENZ_nam}.bed $Ref_Fa
+awk -F "\t" '{OFS="\t"}{print $1,$2,$3,$4"@"$1":"$2"-"$3}' $Out_Path/${Ref_nam}-${ENZ_nam}.bed >  $Out_Path/${Ref_nam}-${ENZ_nam}_2.bed
+
+######## extract fasta for mboi coordinate ########
+bedtools getfasta -fi $Ref_Fa -bed $Out_Path/${Ref_nam}-${ENZ_nam}_2.bed -name -fo $Out_Path/${Ref_nam}-${ENZ_nam}.fa
+sed -i "s/::.*$//g" $Out_Path/${Ref_nam}-${ENZ_nam}.fa
+
+######## built index use MboI-chr14_mm10.fasta ########
+mkdir -p $Out_Path/${Ref_nam}-${ENZ_nam}_Index
+bowtie2-build --threads 4 -f $Out_Path/${Ref_nam}-${ENZ_nam}.fa $Out_Path/${Ref_nam}-${ENZ_nam}_Index/${Ref_nam}-${ENZ_nam}_Index

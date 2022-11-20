@@ -1,0 +1,61 @@
+## Config information for Tri-3CHTGTS
+
+
+######## Part one: Genome file check ########
+
+## Common dna restriction enzyme name: MboI, NlaIII
+First_enzyme_name = MboI
+
+## Enzyme cut site lable as "^"
+EnzymeSite = ^GATC
+
+## Reference genome name
+Ref_nam = mm10
+
+## Reference genome fasta file
+Ref_Fa = /sdc1/home/lzq/Pipline/NGS/Data/Ref/mm10/mm10.fasta
+
+## Path of fasta file of genome enzyme-digested
+Reduced_genome_Fa = /sdc1/home/lzq/Pipline/NGS/Data/Ref_4C/Mouse/mm10/MboI/mm10-MboI.fa
+
+## Path of bed file of enzyme digested DNA fragment location in genome
+ENFRAG = /sdc1/home/lzq/Pipline/NGS/Data/Ref_4C/Mouse/mm10/MboI/mm10-MboI_Loci.bed
+
+## Bowtie2 index path
+RefIndex = /sdc1/home/lzq/Pipline/NGS/Data/Ref_4C/Mouse/mm10/MboI/mm10-MboI_Index/mm10-MboI_Index 
+
+## Path of chromosome size file
+CHROMSIZE = /sdc1/home/lzq/Pipline/NGS/Data/Ref/mm10/mm10.sizes.genome
+
+
+######## Part two: Input ########
+
+## Nest Primer sequence
+NestPrimer = CTTGTTCTGATTGGATGGCGA
+
+## Adapter Primer sequence
+AdapterPrimer = GACTATAGGGCACGCGTGG
+
+## Max cpus numbers used in this software
+Thread = 6
+
+
+
+######## Part three: Output ########
+
+## Type of Analysis : 1D_PerCell, 1D_PerFragment, 2D_PerCell or 2D_PerFragment
+TYPES =  1D_PerCell 1D_PerFragment 2D_PerCell 2D_PerFragment
+
+## Resolution for triplet-interaction sparse matrix
+BIN_SIZE = 1000 3000 5000 10000 
+
+## Start coordinate and stop coordinate for local plot
+START = 53740000
+STOP = 54300000
+
+######## Data ########
+PAIR1_EXT = _1
+PAIR2_EXT = _2
+
+####### Rawdata ######
+RAW_DIR = rawdata

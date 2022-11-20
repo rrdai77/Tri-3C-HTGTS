@@ -1,0 +1,166 @@
+#!/bin/bash
+
+## 3CHTGTS-LoopCut
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for loop cutting of merged reads by enzyme site.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-LoopCut'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -e EnzymeSite -m "T" [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : merged fastq data directory;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+        echo -e "\t\t -e|--enzymesite EnzymeSite : Enzyme cutting site sequence;"
+	echo -e "\t\t -m|--multi multi-interaction : loop cutting for multi-interaction(T: multi; F: sigle);"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR -e GATC -m "T"" 
+	echo
+        exit;
+}
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+## transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--enzymesite") set -- "$@" "-e" ;;
+      "--multi") set -- "$@" "-m" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:e:m:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR=$OPTARG;;
+        e) EnzymeSite=$OPTARG;;
+	m) MULTI=$OPTARG;;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" || -z "$EnzymeSite" || -z "$MULTI" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUTDIR
+echo -e "Output Directory : "$OUTPUTDIR
+echo -e "Enzyme Site : "$EnzymeSite
+echo -e "Multi-interaction : "$MULTI
+
+
+###################
+## Run 3CHTGTS-LoopCut
+###################
+mkdir -p $OUTPUTDIR
+Thread=6
+
+## Main function
+ls $INPUTDIR/*/*merge.fastq > $OUTPUTDIR/R.list
+while read F
+do
+        DIR=`echo ${F##*/} |cut -d . -f 1`
+        mkdir -p $OUTPUTDIR/$DIR
+
+        i=0
+
+	n=1
+        while [[ $n -eq 1 ]]
+        do
+                echo -e "i="$i
+		flag=1
+                if [[ -s $F ]] && [[ $flag == 1 ]]
+                then
+                        Out_P3=${DIR}_P3_${i}.fastq
+                        Out_P5=${DIR}_P5_${i}.fastq
+                        cutadapt -j $Thread -g $EnzymeSite -m 15 --overlap 4 --discard-untrimmed \
+                                        -o $OUTPUTDIR/$DIR/$Out_P3 $F \
+                                        > $OUTPUTDIR/$DIR/${DIR}_P3_${i}_Report
+
+                        cutadapt -j $Thread -a $EnzymeSite -m 15 --overlap 4 \
+                                        -o $OUTPUTDIR/$DIR/$Out_P5 $F \
+                                        > $OUTPUTDIR/$DIR/${DIR}_P5_${i}_Report
+
+                        ((i++))
+                        F=$OUTPUTDIR/$DIR/$Out_P3
+			F5=$OUTPUTDIR/$DIR/$Out_P5
+			if [[ ! -s $F5 ]]; then
+				flag=0
+				rm $F5 $F
+			fi
+                else
+                        break 1
+                fi
+
+		echo -e "MULTI:"$MULTI
+		echo -e "n:"$n
+		## break out loop if muti=0
+		if [ "$MULTI" == "F" -a $i -gt 1 ];then
+			n=0
+		fi		
+
+
+        done
+done < $OUTPUTDIR/R.list
+
+rm  $OUTPUTDIR/*/*P3*
+
+

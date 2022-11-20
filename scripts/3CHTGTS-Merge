@@ -1,0 +1,135 @@
+#!/bin/bash
+
+## 3CHTGTS-QC
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for manually merging paired-end reads containing Nested primer or Adapter primer to single reads by using restriction enzyme recognition sequences.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-Merge'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -e EnzymeSite [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : input data directory;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+        echo -e "\t\t -e|--enzymesite EnzymeSite : Enzyme cuttig site sequence;"
+        echo -e "\t\t [-h|--help]: help"
+        echo -e "\t\t [-v|--version]: version]"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR -e" 
+        echo
+	exit;
+}
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+## transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--enzymesite") set -- "$@" "-e" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:e:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR=$OPTARG;;
+        e) EnzymeSite=$OPTARG;;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" || -z "$EnzymeSite" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUTDIR
+echo -e "Output Directory : "$OUTPUTDIR
+echo -e "Enzyme Site : "$EnzymeSite
+
+
+###################
+## Run 3CHTGTS-Merge
+###################
+mkdir -p $OUTPUTDIR
+Thread=6
+
+## List paired-end reads
+ls $INPUTDIR/*/*R1.fastq > $OUTPUTDIR/R1.list
+ls $INPUTDIR/*/*R2.fastq > $OUTPUTDIR/R2.list
+paste -d , $OUTPUTDIR/R1.list $OUTPUTDIR/R2.list > $OUTPUTDIR/R1_R2.list
+
+## Main function
+while read R
+do
+        R1=`echo $R |cut -d , -f 1`
+        R2=`echo $R |cut -d , -f 2`
+        out=`echo ${R##*/} | cut -d _ -f 1`
+
+        mkdir -p $OUTPUTDIR/$out
+        Pear --forward-fastq $R1 --reverse-fastq $R2 \
+                --min-overlap 10  --threads $Thread \
+                -o $OUTPUTDIR/$out/$out >> $OUTPUTDIR/$out/${out}_assemble_log.txt
+        # merge unasemble reads pairs by pasting with splitting string of enzyme site
+        paste -d "\t" $OUTPUTDIR/$out/*forward.fastq $OUTPUTDIR/$out/*reverse.fastq |\
+        awk -v IN=$EnzymeSite '{if (NR % 4 == 1) gsub(/\t@.*$/,"",$0); else if (NR % 2 == 0) gsub(/\t/,IN,$0); else if(NR % 4 == 3) gsub(/\t\+/,"",$0);} 1'\
+        > $OUTPUTDIR/$out/${out}.unassembled.paste.fastq
+        # merge Nested_PCR_Primer Reads
+        cat $OUTPUTDIR/$out/${out}.assembled.fastq $OUTPUTDIR/$out/${out}.unassembled.paste.fastq > $OUTPUTDIR/$out/${out}.merge.fastq
+done < $OUTPUTDIR/R1_R2.list
+
+

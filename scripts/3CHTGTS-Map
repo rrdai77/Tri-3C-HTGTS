@@ -1,0 +1,137 @@
+#!/bin/bash
+
+## 3CHTGTS-Map
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for single-end reads aligning to the enzyme-digested reference genome.
+## See the LICENCE file for details
+## sort Reads pairs that contain NestPrimer and AdapterPrimer
+
+
+SOFT='3CHTGTS-Map'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -r RefIndex -p CPUs [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : input data directory;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+	echo -e "\t\t -r|--refindex Bowtie2 index for reference genome : bowtie2 index path that contain file basename;"
+	echo -e "\t\t -p|--threads CPU numbers for bowtie2 alignment;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR -r RefIndex -p CPUs" 
+        echo
+	exit;
+}
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--refindex") set -- "$@" "-r" ;;
+      "--threads" ) set -- "$@"  "-p" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:r:p:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR=$OPTARG;;
+	r) RefIndex=$OPTARG;;
+	p) Threads=$OPTARG;;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" ]]; then
+    usage
+    exit
+fi
+
+if [[ -z "$RefIndex" ]]; then
+    echo -e "ERROR in reference genome index!!"
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUTDIR
+echo -e "Output Directory : "$OUTPUTDIR
+echo -e "Reference Index : "$RefIndex
+echo -e "Number of CPUs : "$Threads
+
+
+###################
+## Run 3CHTGTS-QC
+###################
+mkdir -p $OUTPUTDIR/Sorted_Bam
+
+## Main function
+ls $INPUTDIR/*/*P5*fastq > $OUTPUTDIR/R.list
+
+while read F
+do
+        Out=`echo ${F##*/}|cut -d . -f 1`
+        exec 2> $OUTPUTDIR/${Out}_Report
+        bowtie2 -p $Threads \
+                -x $RefIndex \
+                --sensitive \
+                -U $F \
+                -S $OUTPUTDIR/${Out}.sam >&2
+
+        samtools view -h -F 4 $OUTPUTDIR/${Out}.sam | grep -v "XS:i" |\
+	grep -v "chrM" | samtools view -b - > $OUTPUTDIR/Sorted_Bam/${Out}.sorted.bam
+        rm $OUTPUTDIR/${Out}.sam
+done < $OUTPUTDIR/R.list

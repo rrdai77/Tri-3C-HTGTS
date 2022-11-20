@@ -1,0 +1,114 @@
+#!/bin/bash
+
+## 3CHTGTS-ToMatrix
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for putting all the digested fragments retrieved from the same read according to the unique ID of each read on one line.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-ToMatrix'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : input data direactory from merged pre-matrix;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data direactory;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR" 
+	echo
+        exit;
+}
+
+function version {
+	echo -e "$SOFT version $VERSION"
+	exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+			
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:vh" OPT
+do
+    case $OPT in
+        i) INPUT="$OPTARG";;
+        o) OUTPUT="$OPTARG";;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUT" || -z "$OUTPUT" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUT
+echo -e "Output Directory : "$OUTPUT
+
+
+###################
+## Run 3CHTGTS-QC
+###################
+mkdir -p $OUTPUT
+
+## Main function
+## Combine the fragment locus from the same reads
+for F in `ls -d $INPUT/*`
+do	
+	DIR=`echo ${F##*/}`
+	mkdir -p $OUTPUT/$DIR
+
+	ToMatrix.py -i $F/${DIR}_merge.prematrix -o $OUTPUT/$DIR/$DIR
+done

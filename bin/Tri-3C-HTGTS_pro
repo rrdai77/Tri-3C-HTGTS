@@ -1,0 +1,473 @@
+#!/bin/bash
+
+## Tri-3C-HTGTS_pro
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for mining multi-way chromatin interactions from 3C-HTGTS data.
+## See the LICENCE file for details
+
+echo -e "Tri-3C-HTGTS_pro"
+echo -e "Copyright (c) 2020"
+echo -e "Author(s): Ranran Dai"
+echo -e "Description: Main script for mining multi-way chromatin interactions from 3C-HTGTS data.\n\n"
+
+## Pipeline for Tri-3CHTGTS
+SOFT="Tri-3C-HTGTS_pro"
+VERSION="1.0.0"
+
+## usage
+function usage {
+	echo -e "Usage : $SOFT -i INPUT -o OUTPUT -c CONFIG [-s ANALYSIS_STEP] [-h] [-v]"
+	echo -e "Usage option -h|--help for more information"
+	
+	if [[ ! -e  ${INSTALL_PATH}/config-system.txt ]]; then
+		echo "Error - Installation - config system not detected. Please (re) install $SOFT!"
+		exit -1
+	fi
+}
+
+######## Help function ########
+function help {
+	usage;
+	echo
+	echo "$SOFT $VERSION"
+	echo "--------------"
+	echo "OPTIONS"
+	echo
+        echo -e "\t -i|--input INPUT : input data folder; each sub-folder for per sample;"
+        echo -e "\t -o|--output OUTPUT : output folder;"
+        echo -e "\t -c|--Conf CONFIG : configuration file for Tri-3C-HTGTS;"
+        echo -e "\t [-s|--step ANALYSIS_STEP] : run only a subset of the $SOFT workflow:
+			s1_QC, s2_PrimerSort, s3_Merge, s4_LooPCut, s5_Map, s6_Filter, s7_Extract, s8_ToMatrix, s9_ContinueRemove, s10_Tri, s11_Report;"
+        echo -e "\t [-h|--help]: help;"
+        echo -e "\t [-v|--version]: version"
+	echo "--------------"
+	echo
+	echo -e "Example:"
+	echo -e "\n"
+	echo -e "\t\t $SOFT -i rawdata -c Config.txt -o Result"
+	echo -e "\t\t $SOFT -i rawdata -c Config.txt -o Result -s s8_ToMatrix s9_ContinueRemove s10_Tri"
+	echo -e "\n"
+	exit;
+}
+
+
+function version {
+	echo -e "$SOFT version $VERSION"
+	exit;
+}
+
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+
+## Set PATHS
+BIN_PATH=`dirname $0`
+ABS_BIN_PATH=`cd "$BIN_PATH"; pwd`
+SCRIPTS_PATH="$ABS_BIN_PATH/../scripts"
+INSTALL_PATH="$ABS_BIN_PATH/../"
+CUR_PATH=$PWD
+
+CLUSTER=0
+OPTS=()
+INPUT=""
+OUTPUT=""
+CONF=""
+
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit 1
+fi
+
+
+OPTS=()
+while [[ $# -gt 0 ]]
+do
+	key="$1"
+#	echo -e "key:"$key
+	case $key in
+		--input|-i) INPUT=$2; shift;;
+		--output|-o) OUTPUT=$2; shift;;
+		--conf|-c) CONF=$2; shift;;
+		--step|-s) 
+			while (( "$#" >= 2 )) && ! [[ $2 == --* ]]; do
+				 OPTS+=( "$2" )
+				shift
+			done;;
+		--version|-v) version ; exit 2;;
+		--help|-h) help; exit 2 ;;
+		*)
+		echo configure option \'$1\' not understood!
+		echo use Tri-3C-HTGTS_pro --help to see correct usage!
+		exit 2
+		;;
+		esac
+	shift
+done
+
+## check config.txt
+echo "Config:"$CONF
+if [ ! -s "$PWD/$CONF" ]; then
+    echo -e "no config"
+    cp ${BIN_PATH%/*}/Config.txt ./
+    echo -e "please edit Config.txt"
+    exit
+fi
+
+
+echo -e "Input: "$INPUT
+echo -e "Output: "$OUTPUT
+echo -e "Conf: "$CONF
+echo -e "Step: "${OPTS[@]}
+
+if [[ ${#OPTS[@]} -lt 1 ]]
+then
+	OPTS=("all")
+fi
+
+s1_QC_s="F"
+s2_PrimerSort_s="F"
+s3_Merge_s="F"
+s4_LooPCut_s="F"
+s5_Map_s="F"
+s6_Filter_s="F"
+s7_Extract_s="F"
+s8_ToMatrix_s="F"
+s9_ContinueRemove_s="F"
+s10_Tri_s="F"
+s11_Report_s="F"
+
+
+for opt in ${OPTS[@]}
+do
+	case $opt in
+		all) 
+			s1_QC_s="T"
+			s2_PrimerSort_s="T"
+			s3_Merge_s="T"
+			s4_LooPCut_s="T"
+			s5_Map_s="T"
+			s6_Filter_s="T"
+			s7_Extract_s="T"
+			s8_ToMatrix_s="T"
+			s9_ContinueRemove_s="T"
+		   	s10_Tri_s="T"
+			s11_Report_s="T";;
+		s1_QC) s1_QC_s="T";;
+		s2_PrimerSort) s2_PrimerSort_s="T";;
+		s3_Merge) s3_Merge_s="T";;
+		s4_LooPCut)  s4_LooPCut_s="T";;
+		s5_Map) s5_Map_s="T";;
+		s6_Filter) s6_Filter_s="T";;
+		s7_Extract) s7_Extract_s="T";;
+		s8_ToMatrix) s8_ToMatrix_s="T";;
+		s9_ContinueRemove) s9_ContinueRemove_s="T";;
+		s10_Tri) s10_Tri_s="T";;
+		s11_Report) s11_Report_s="T";;
+		*) echo step name \" $opt \" not understood!
+		   echo used Tri-3C-HTGTS_pro --help to see correct usage!
+		   exit;;
+	esac
+done
+
+
+echo "s1_QC_s:"$s1_QC_s
+echo "s2_PrimerSort_s:"$s2_PrimerSort_s
+echo "s3_Merge_s:"$s3_Merge_s
+echo "s4_LooPCut_s:"$s4_LooPCut_s
+echo "s5_Map_s:"$s5_Map_s
+echo "s6_Filter_s:"$s6_Filter_s
+echo "s7_Extract_s:"$s7_Extract_s
+echo "s8_ToMatrix_s:"$s8_ToMatrix_s
+echo "s9_ContinueRemove_s:"$s9_ContinueRemove_s
+echo "s10_Tri_s:"$s10_Tri_s
+echo "s11_Report_s:"$s11_Report_s
+
+
+if [[ -z $INPUT || -z $OUTPUT ]]; then
+    usage
+    exit
+fi
+
+
+#####################
+## Check Config file
+#####################
+## Read conf file
+. ${SCRIPTS_PATH}/build_in.sh
+
+INPUT=`abspath $PWD/$INPUT`
+OUTPUT=`abspath $PWD/$OUTPUT`
+
+echo "INPUT:"$INPUT
+echo "CONF:"$CONF
+if [[ ! -d $INPUT && -z $INPUT ]]; then
+    echo "Inputs '$INPUT' not found. Exit."
+    exit -1
+fi
+
+echo $First_enzyme_name
+## check primer and enzyme site
+if [[ -z $First_enzyme_name ]]; then
+   die "Enzyme name '$First_enzyme_name' is null. Exit." 
+fi
+
+if [[ -z $EnzymeSite ]]; then
+    die "Enzyme site '$EnzymeSite' is null. Exit."
+fi
+
+if [[ -z $NestedPrimer ]]; then
+    die "Nest Primer '$NestedPrimer' is null. Exit."
+fi
+
+if [[ -z $AdapterPrimer ]]; then
+    die "Adapter Primer '$AdapterPrimer' is null. Exit."
+fi
+
+## Genome anotation
+CHROMSIZE=`abspath $CHROMSIZE`
+
+if [[ ! -s $CHROMSIZE && -z $CHROMSIZE ]]; then
+    die "Chromosome size file '$CHROMSIZE' not found. Exit."
+fi
+
+Reduced_genome_Fa=`abspath $Reduced_genome_Fa`
+
+if [[ ! -s $Reduced_genome_Fa && -z $Reduced_genome_Fa ]]; then
+    die "Enzyme-digested genome file '$Reduced_genome_Fa' not found. Exit."
+fi
+
+## enzyme digested DNA fragment locus
+ENFEAG=`abspath $ENFRAG`
+if [[ ! -s $ENFEAG && ! -z $ENFEAG ]]; then
+    die "Enzyme-digested DNA fragment locus '$ENFEAG' not found. Exit."
+fi
+
+FRAGID=`abspath $FRAGID`
+if [[ ! -s $FRAGID && ! -z $FRAGID ]]; then
+    die "Enzyme-digested DNA fragment '$FRAGID' not found. Exit."
+fi
+
+Ref_Fa=`abspath $Ref_Fa`
+
+RefIndex=`abspath $RefIndex`
+
+if [[ ! -d $RefIndex && -z $RefIndex ]]; then
+    die "Bowtie2 index file '$RefIndex' not found. Exit."
+fi
+
+## check Analysis_Type and Bin_Size
+if [[ -z $TYPES ]]; then
+    die "Analysis type '$TYPES' is null. Exit."
+fi
+
+if [[ -z $BIN_SIZE ]]; then
+    die "Bin size '$BIN_SIZE' is null. Exit."
+fi
+
+if [[ -z $START ]]; then
+    die "Start coordinate to plot '$START' is null. Exit."
+fi
+
+if [[ -z $STOP ]]; then
+    die "Stop coordinate to plot '$STOP' is null. Exit."
+fi
+
+if [[ -z $Thread ]]; then
+    die "CPU numbers '$Thread' is null. Exit."
+fi
+
+
+## check input data
+if [[ -z $PAIR1_EXT || -z $PAIR2_EXT ]]; then
+    die "Read pairs extensions not defined. Exit"
+fi
+
+
+
+#####################
+## Init
+#####################
+if [[ $s1_QC_s == "T" ]]
+then
+	if [[ -d $OUTPUT  ]]; then
+		echo "$OUTPUT folder alreads exists. Do you want to overwrite it ? (y/n) [n] : "
+		read ans
+ 		if [ XX${ans} = XXy ]; then
+			/bin/rm -rf $OUTPUT
+			elif [ XX${ans} = XXn ]; then
+			exit -1
+		fi
+	fi
+	mkdir -p $OUTPUT
+
+	if [ -L $OUTPUT/$RAW_DIR ]; then
+		/bin/rm $OUTPUT/$RAW_DIR
+	fi
+	ln -s $INPUT $OUTPUT/$RAW_DIR
+
+
+	## cp config file in output
+	if [ ! -d ${OUTPUT}/$(basename ${CONF}) ]; then
+		cp $CONF ${OUTPUT}/$(basename ${CONF})
+	fi
+fi
+#cd $OUTPUT
+
+#####################
+## Check input files
+#####################
+NEED_FASTQ=1
+if [[ $NEED_FASTQ == 1 ]]; then
+    r1files=$(find -L $RAW_DIR -mindepth 2 -maxdepth 2 -name "*.fastq" -o -name "*.fastq.gz" | grep "$PAIR1_EXT" | wc -l)
+    r2files=$(find -L $RAW_DIR -mindepth 2 -maxdepth 2 -name "*.fastq" -o -name "*.fastq.gz" | grep "$PAIR2_EXT" | wc -l)
+    if [[ "$r1files" != "$r2files" ]]; then
+        die "Number of $PAIR1_EXT files is different from $PAIR2_EXT [$r1files vs $r2files]."
+    fi
+fi
+
+###################
+## Pipline 
+###################
+ENZseq=`echo $EnzymeSite | sed 's/\^//g'`
+
+s1_QC=`echo $SCRIPTS_PATH/3CHTGTS-QC`
+s2_PrimerSort=`echo $SCRIPTS_PATH/3CHTGTS-PrimerSort`
+s3_Merge=`echo $SCRIPTS_PATH/3CHTGTS-Merge`
+s4_LooPCut=`echo $SCRIPTS_PATH/3CHTGTS-LoopCut`
+s5_Map=`echo $SCRIPTS_PATH/3CHTGTS-Map`
+s6_Filter=`echo $SCRIPTS_PATH/3CHTGTS-Filter`
+s7_Extract=`echo $SCRIPTS_PATH/3CHTGTS-Extract`
+s8_ToMatrix=`echo $SCRIPTS_PATH/3CHTGTS-ToMatrix`
+s9_ContinueRemove=`echo $SCRIPTS_PATH/3CHTGTS-ContinueRemove`
+s10_Tri=`echo $SCRIPTS_PATH/3CHTGTS-Tri`
+s11_Report=`echo $SCRIPTS_PATH/3CHTGTS-Report`
+
+
+## output directory
+s1_OUTDIR="$OUTPUT/00_QC"
+s2_OUTDIR="$OUTPUT/01_PreProcess/Step1"
+s3_OUTDIR="$OUTPUT/01_PreProcess/Step2"
+s4_OUTDIR="$OUTPUT/01_PreProcess/Step3"
+s5_OUTDIR="$OUTPUT/02_Map"
+s6_OUTDIR="$OUTPUT/03_Filter"
+s7_INPUTDIR="$OUTPUT/03_Filter/Step4-SL/*"
+s7_OUTDIR="$OUTPUT/04_Extract"
+s8_OUTDIR="$OUTPUT/05_ToMatrix"
+s9_OUTDIR="$OUTPUT/06_ContinueRemove"
+s10_OUTDIR="$OUTPUT/07_Tri"
+s11_OUTDIR="$OUTPUT/08_Report"
+
+
+echo "s7_INPUTDIR : "$s7_INPUTDIR
+echo "NestedPrimer : "$NestedPrimer
+
+
+###################
+## Run Tri-3C-HTGTS_pro
+###################
+echo -e "Step1=========================="
+if [[ $s1_QC_s == "T" ]]
+then
+	eval ${s1_QC} -i $INPUT -o $s1_OUTDIR -c $CONF
+fi
+
+## Find bait fragment id
+echo -e "Find ID======================="
+BAITID=`grep -B 1 -i $NestedPrimer $Reduced_genome_Fa | head -n 1| awk -F "[@>]" '{print $2}'`
+BaitCoordinate=`grep -i $BAITID $FRAGID | head -n 1 |awk -F "\t" '{OFS=" "}{print $1,$2,$3}'`
+
+if [ -z $BAITID ] ; then
+        BaitSeq=`grep -A 1 -i "NestedPrimer" $s1_OUTDIR/Primer_rev.fa | tail -n 1`
+        BAITID=`grep -B 1 -i $BaitSeq $Reduced_genome_Fa | head -n 1| awk -F "[@>]" '{print $2}'`
+	BaitCoordinate=`grep -i $BAITID $FRAGID | head -n 1 |awk -F "\t" '{OFS=" "}{print $1,$2,$3}'`
+fi
+
+EnLen=`echo $ENZseq | wc -c`
+EnLen=`echo "$EnLen-1"|bc`
+CHR=`echo $BAITID |cut -d _ -f 2`
+BAITFID=`echo $BAITID |cut -d _ -f 2,3`
+BaitCoordinatestart=`echo $BaitCoordinate |cut -d ' ' -f 2`
+#BaitCoordinatestop=`echo $BaitCoordinate |cut -d ' ' -f 3`
+
+echo -e "Length of Enzyme Site : "$EnLen
+echo -e "CHR : "$CHR
+echo -e "Fragment ID Of Bait : "$BAITID
+echo -e "Coordinate Start Site Of Bait : "$BaitCoordinatestart
+
+
+echo -e "Step2=========================="
+if [[ $s2_PrimerSort_s == "T" ]]
+then
+	eval ${s2_PrimerSort} -i $s1_OUTDIR -o $s2_OUTDIR -n $NestedPrimer -a $AdapterPrimer
+fi
+
+
+echo -e "Step3=========================="
+if [[ $s3_Merge_s == "T" ]]
+then
+	eval ${s3_Merge} -i $s2_OUTDIR -o $s3_OUTDIR -e $ENZseq
+fi
+
+
+echo -e "Step4=========================="
+if [[ $s4_LooPCut_s == "T" ]]
+then
+	eval ${s4_LooPCut} -i $s3_OUTDIR -o $s4_OUTDIR -e $ENZseq -m "T"
+fi
+
+
+echo -e "Step5=========================="
+if [[ $s5_Map_s == "T" ]]
+then
+	eval ${s5_Map} -i $s4_OUTDIR -o $s5_OUTDIR -r $RefIndex -p $Thread
+fi
+
+
+echo -e "Step6=========================="
+if [[ $s6_Filter_s == "T" ]]
+then
+	eval ${s6_Filter} -i $s5_OUTDIR -o $s6_OUTDIR -b $BAITID -l $EnLen
+fi
+
+
+echo -e "Step7=========================="
+if [[ $s7_Extract_s == "T" ]]
+then
+	eval ${s7_Extract} -i $s7_INPUTDIR -o $s7_OUTDIR
+fi
+
+
+echo -e "Step8=========================="
+if [[ $s8_ToMatrix_s == "T" ]]
+then
+	eval ${s8_ToMatrix} -i $s7_OUTDIR -o $s8_OUTDIR
+fi
+
+echo -e "Step9=========================="
+if [[ $s9_ContinueRemove_s == "T" ]]
+then
+	eval ${s9_ContinueRemove} -i $s8_OUTDIR -o $s9_OUTDIR -b $BAITFID
+fi
+
+echo -e "Step10=========================="
+if [[ $s10_Tri_s == "T" ]]
+then
+        eval ${s10_Tri} -i $s9_OUTDIR -o $s10_OUTDIR -b $BaitCoordinatestart -s $CHROMSIZE -f $ENFRAG -c $CHR -r ${BIN_SIZE[@]} -a $START -p $STOP -t ${TYPES[@]}
+fi
+
+echo -e "Step11=========================="
+if [[ $s11_Report_s == "T" ]]
+then
+        eval ${s11_Report} -i $s1_OUTDIR -c $CHR -o $s11_OUTDIR
+fi

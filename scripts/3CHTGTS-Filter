@@ -1,0 +1,154 @@
+#!/bin/bash
+
+## 3CHTGTS-Filter
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for detecting on-target and removing self-ligation fragments.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-Filter'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -b BAITID -l EnzymeLen [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : directory of bam files;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+	echo -e "\t\t -b|--baitid BAITID : enzyme fragment ID of bait : <HIC_chr14_131099>;"
+	echo -e "\t\t -l|--enzlen ENZLEN : enzyme site length;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR -b HIC_chr14_131099 -l 4" 
+        echo
+	exit;
+}
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--baitid") set -- "$@"  "-b" ;;
+      "--enzlen") set -- "$@" "-l" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:b:l:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR=$OPTARG;;
+	b) BAITID=$OPTARG;;
+	l) ENZLEN=$OPTARG;;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" || -z "$ENZLEN" ]]; then
+    usage
+    exit
+fi
+
+if [[ -z "$BAITID" ]]; then
+    echo -e "BAITID is NULL!!"
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUTDIR
+echo -e "Output Directory : "$OUTPUTDIR
+echo -e "Enzyme Length : "$ENZLEN
+echo -e "Enzyme Fragment ID Of Bait : "$BAITID
+
+
+###################
+## Run 3CHTGTS-Filter
+###################
+mkdir -p $OUTPUTDIR/Step1 $OUTPUTDIR/Step2 $OUTPUTDIR/Step3-OnT $OUTPUTDIR/Step4-SL
+
+## Various Defination
+CHR=`echo $BAITID | cut -d _ -f 2`
+F_ID=`echo $BAITID | cut -d _ -f 3`
+F_L=`echo $F_ID-1 | bc`
+F_R=`echo $F_ID+1 | bc`
+FI=HIC_${CHR}_${F_ID}
+FL=HIC_${CHR}_${F_L}
+FR=HIC_${CHR}_${F_R}
+
+## Main function
+## Convert bam files to bed files
+for F in `ls $INPUTDIR/Sorted_Bam/*bam`
+do
+        Out=`echo ${F##*/} | cut -d . -f 1`
+        bedtools bamtobed -i $F > $OUTPUTDIR/Step1/${Out}.bed
+done
+
+## On-target detection and self-ligation fragments removing
+for F in `ls $OUTPUTDIR/Step1/*bed`
+do
+        if [[ -s $F ]]
+        then
+        out=`echo ${F##*/} | cut -d . -f 1`
+	out2=`echo ${F##*/} | cut -d _ -f 1`
+	
+	echo "Outdir:"$OUTPUTDIR/Step3-OnT/$out2
+	mkdir -p $OUTPUTDIR/Step3-OnT/$out2
+        cat $F | sed "s/:/@/;s/-/@/" | awk -F "[\t@]" '{OFS="\t"}{print $7,$2,$3,$4,$5,$6,$4-$3,$1,$9}'> $OUTPUTDIR/Step2/${out}.bed
+
+        awk -F "\t" -v enz_len=$ENZLEN '{OFS="\t"}{if ($5 == 0 || $5 == enz_len || $6 == $7) print $0}' $OUTPUTDIR/Step2/${out}.bed > $OUTPUTDIR/Step3-OnT/$out2/${out}.bed
+
+	mkdir -p $OUTPUTDIR/Step4-SL/$out2
+        awk -F "\t" -v FL=$FL -v FR=$FR -v FI=$FI '{OFS="\t"}{if ($8 != FL  && $8 != FR && $8 != FI)print $0}' $OUTPUTDIR/Step3-OnT/$out2/${out}.bed > $OUTPUTDIR/Step4-SL/$out2/${out}.bed
+        fi
+done

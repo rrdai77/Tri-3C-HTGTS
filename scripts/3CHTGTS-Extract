@@ -1,0 +1,123 @@
+#!/bin/bash
+
+## 3CHTGTS-Extract
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for extracting all fragments except fragment 0 from 03_Filter/Step3-OnT or 03_Filter/Step4-SL.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-Extract'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUT -o OUTPUT [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t [-i|--input]: INPUT : input as a direactory, a file or multiple files from 03_Filter/Step3-OnT or 03_Filter/Step4-SL;"
+        echo -e "\t\t [-o|--output]: OUTPUTDIR : output data directory;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+	echo
+	echo -e "If INPUT is a directory: "
+	echo -e "\t\t one directory : $SOFT -i INPUTDIR -o OUTPUTDIR \n"
+	echo -e "If INPUT are some files, the name of OUTPUTDIR must be 04_Extract: "
+        echo -e "\t\t one file : $SOFT -i file -o 04_Extract" 
+        echo -e "\t\t many files : $SOFT -i file1 file2 -o 04_Extract"
+        echo -e "\t\t one file pattern: $SOFT -i  file_pattern* -o 04_Extract"
+        echo
+	exit;
+}
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+INPUTS=()
+while [[ $# -gt 0 ]]
+do
+        key="$1"
+        case $key in
+                --input|-i)
+                         while (( "$#" >= 2 )) && ! [[ $2 == --* ]] && ! [[ $2 == -* ]]; do
+                                 INPUTS+=( "$2" )
+                                shift
+                        done;;
+                --output|-o) OUTPUTDIR=$2; shift;;
+                --version|-v) version ; exit 2;;
+                --help|-h) help; exit 2 ;;
+                *)
+                echo option \'$1\' not understood!
+                echo use $SOFT --help to see correct usage!
+                exit 2
+                ;;
+                esac
+        shift
+done
+
+if [[ -z "${INPUTS}" || -z "$OUTPUTDIR" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input : "${INPUTS[@]}
+echo -e "Output : "$OUTPUTDIR
+
+
+###################
+## Run 3CHTGTS-Extract
+###################
+mkdir -p $OUTPUTDIR
+
+## Main function
+## Output file formate : enzyme fragment ID | enzyme fragment locus |DNA fragment locus
+if [ -d ${INPUTS[0]} ]
+then
+	echo -e "Input is a directory: "$INPUTS
+	for F in `ls -d ${INPUTS[@]}`
+	do	
+		DIR=`echo ${F##*/}`
+		mkdir -p $OUTPUTDIR/$DIR
+
+		INPUTFILE=`ls $F/* |grep -v "_0.bed"`
+		cat $INPUTFILE | awk -F "\t" '{OFS="\t"}{if($9 == "+")print $1,$8"|"$2":"$3"-"$4"|"$2":"$3"-"$3+$6; else if($9 == "-")print $1,$8"|"$2":"$3"-"$4"|"$2":"$4-$6"-"$4;}' > $OUTPUTDIR/$DIR/${DIR}_merge.prematrix
+
+	done 
+elif [ -f ${INPUTS[0]} ]
+then
+	echo -e "Input are some files: "${INPUTS[@]}
+	DIR=`echo ${INPUTS[0]##*/}| cut -d _ -f 1`
+	mkdir -p $OUTPUTDIR/$DIR
+	
+	INPUTFILE=`ls ${INPUTS[@]}| grep -v "_0.bed"`
+	cat $INPUTFILE | awk -F "\t" '{OFS="\t"}{if($9 == "+")print $1,$8"|"$2":"$3"-"$4"|"$2":"$3"-"$3+$6; else if($9 == "-")print $1,$8"|"$2":"$3"-"$4"|"$2":"$4-$6"-"$4;}' > $OUTPUTDIR/$DIR/${DIR}_merge.prematrix
+fi

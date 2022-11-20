@@ -1,0 +1,148 @@
+#!/bin/bash
+
+## 3CHTGTS-Tri
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for creat raw and normalized count matrix of three-way interaction.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-Tri'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUT -o OUTPUT -b BS -s CHROMSIZE -f ENFRAG -c CHROMID -a START -p STOP [-t ANALYSIS_TYPE] [-r resolution] [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUT : matrix contained enzyme fragment locus of read, per line contains per read;"
+        echo -e "\t\t -o|--output OUTPUT : output data directory;"
+	echo -e "\t\t -b|--bs BS : bait starting site on enzyme fragment;"
+        echo -e "\t\t -s|--chromsize CHROMSIZE : chromosome size file;"
+        echo -e "\t\t -c|--chromid BAITCHROMID : the chromosome of bait : <chr14>;"
+	echo -e "\t\t -f|--enfrag ENFRAG : bed file of enzyme digested DNA fragment locating in genome;"
+        echo -e "\t\t -a|--start START : start coordinate to plot;"
+        echo -e "\t\t -p|--stop STOP : stop coordinate to plot;"
+        echo -e "\t\t [-t|--type ANALYSIS_TYPE] : run only a subset analysis of the $SOFT:
+                                             1D_PerCell, 1D_PerFragment, 2D_PerCell, 2D_PerFragment;"
+	echo -e "\t\t [-r|--resolution RESOLUTION] : resolution for sparse matrix as like hicpro;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+	echo -e "\t $SOFT -i MATRIX -o OUTDIR -b BS -s CHROMSIZE -f ENFRAG -c chr14 -a 53740000 -p 54300000 -t 1D_PerFragment"
+        echo -e "\t $SOFT -i MATRIX -o OUTDIR -b BS -s CHROMSIZE -f ENFRAG -c chr14 -r 10000 -a 53740000 -p 54300000 -t 2D_PerCell"
+        echo
+        exit;
+}
+
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+        echo -e "Error : invalid parameters !" >&2
+        echo -e "Use $SOFT -h for help"
+        exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+# Transform long options to short ones
+TYPES=()
+INPUTS=()
+BIN_SIZE=()
+while [[ $# -gt 0 ]]
+do
+        key="$1"
+        case $key in
+		--input|-i) 
+                	while (( "$#" >= 2 )) && ! [[ $2 == --* ]] && ! [[ $2 == -* ]]; do
+                                INPUTS+=( "$2" )
+                                shift
+                        done ;;
+                --output|-o) OUTPUT=$2;
+                             shift ;;
+		--bs|-b) BS=$2;
+                         shift ;;
+                --chromsize|-s) CHROMSIZE=$2;
+                                shift ;;
+		--resolution|-r) 
+                	while (( "$#" >= 2 )) && ! [[ $2 == --* ]] && ! [[ $2 == -* ]]; do
+                                BIN_SIZE+=( "$2" )
+                                shift
+                        done ;; 
+                --chromid|-c) BAITCHROMID=$2;
+                               shift ;;
+		--enfrag|-f) ENFRAG=$2;
+				shift ;; 
+                --start|-a) START=$2;
+                            shift ;; 
+                --stop|-p) STOP=$2;
+                           shift ;;
+		--type|-t)
+                	while (( "$#" >= 2 )) && ! [[ $2 == --* ]]; do
+                                TYPES+=( "$2" )
+                                shift
+                        done ;;
+                --version|-v) version ; exit 2 ;;
+                --help|-h) help; exit 2 ;;
+                *)
+                echo option \'$1\' not understood!
+                echo use 3CHTGTS-Tri --help to see correct usage!
+                exit 2
+                ;;
+                esac
+        shift
+done
+
+if [[ -z "$INPUTS" || -z "$OUTPUT" || -z "$BS" || -z "$CHROMSIZE" || -z "$BAITCHROMID" || -z "$ENFRAG" || -z "$TYPES" || -z "$START" || -z "$STOP" ]]; then
+	    usage
+	        exit
+fi
+
+
+echo -e "Input : "${INPUTS[@]}
+echo -e "Output : "$OUTPUT
+echo -e "BAIT_STARTING : "$BS
+echo -e "CHROMSIZE : "$CHROMSIZE
+echo -e "RESOLUTION : "${BIN_SIZE[@]}
+echo -e "TYPES : "${TYPES[@]}
+echo -e "BAITCHROMID : "$BAITCHROMID
+echo -e "ENFRAG : "$ENFRAG
+echo -e "START : $START"
+echo -e "STOP : $STOP"
+
+
+###################
+## Run 3CHTGTS-QC
+###################
+mkdir -p $OUTPUT
+
+## Main function
+## Creat raw and normalized sparse matrix as like hicpro for three-way interaction
+for F in `ls -d $INPUTS/*`
+do
+	DIR=`echo ${F##*/}`
+	mkdir -p $OUTPUT/$DIR
+
+	3C-HTGTS_Tri -i $F/*removed.matrix -o $OUTPUT/$DIR -b $BS -s $CHROMSIZE -f $ENFRAG -c $BAITCHROMID -r ${BIN_SIZE[@]} -a $START -p $STOP -t ${TYPES[@]}
+done

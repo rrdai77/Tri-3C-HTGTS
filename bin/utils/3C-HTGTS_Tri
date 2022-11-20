@@ -1,0 +1,313 @@
+#!/bin/bash
+
+
+## 3C-HTGTS_Tri
+## Copyright (c) 2020
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for creat raw and normalized count matrix of three-way interaction.
+## See the LICENCE file for details
+
+
+SOFT="3C-HTGTS_Tri"
+VERSION="1.0.0"
+
+## usage
+function usage {
+        echo -e "Usage : $SOFT -i INPUT -o OUTPUT -b BS -s CHROMSIZE -c CHROMID -f ENFRAG -a START -p STOP [-t ANALYSIS_TYPE] [-r RESOLUTION] [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        usage;
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t -i|--input INPUT : matrix contained enzyme fragment loci of read, per line contains per read;"
+        echo -e "\t -o|--output OUTPUT : output folder;"
+	echo -e "\t -b|--bs BS : bait starting site on enzyme fragment;"
+        echo -e "\t -s|--chromsize CHROMSIZE : chromsone size file;"
+	echo -e "\t -c|--chromid BAITCHROMID : chromsone id of bait: <chr14>;"
+	echo -e "\t -f|--enfrag ENFRAG : bed file of enzyme digested DNA fragment location in genome;"
+	echo -e "\t -a|--start START : start coordinate for plot;"
+        echo -e "\t -p|--stop STOP : stop coordinate for plot;"
+        echo -e "\t [-t|--type ANALYSIS_TYPE] : run only a subset analysis of the $SOFT:
+                        1D_PerCell, 1D_PerFragment, 2D_PerCell, 2D_PerFragment;"
+        echo -e "\t [-r|--resolution RESOLUTION] : resolution for triplet-interaction sparse matrix as like hicpro;"
+        echo -e "\t [-h|--help]: help"
+        echo -e "\t [-v|--version]: version"
+        echo
+	echo "--------------"
+        echo -e "Example:"
+	echo -e "\n"
+        echo -e "\t 3C-HTGTS_Tri -i MATRIX -o OUTDIR -b BS -s CHROMSIZE -c chr14 -f ENFRAG -t 1D_PerFragment -a 53740000 -p 54300000"
+        echo -e "\t 3C-HTGTS_Tri -i MATRIX -o OUTDIR -b BS -s CHROMSIZE -c chr14 -f ENFRAG -t 2D_PerCell -a 53740000 -p 54300000 -r 10000"
+	echo -e "\n"
+        exit;
+}
+
+
+function version {
+        echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+
+function opts_error {
+        echo -e "Error : invalid parameters !" >&2
+        echo -e "Use $SOFT -h for help"
+        exit
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit 1
+fi
+
+# Transform long options to short ones
+TYPES=()
+INPUTS=()
+RESOLUTION=()
+while [[ $# -gt 0 ]]
+do
+        key="$1"
+        case $key in
+		--input|-i) 
+			while (( "$#" >= 2 )) && ! [[ $2 == --* ]] && ! [[ $2 == -* ]]; do
+                        	INPUTS+=( "$2" )
+                        	shift
+			done ;;
+		--output|-o) OUTPUT=$2;
+			     shift ;;
+		--bs|-b) BS=$2;
+			 shift ;;    
+		--chromsize|-s) CHROMSIZE=$2;
+				shift ;;
+		--chromid|-c) BAITCHROMID=$2;
+			       shift ;;
+		--enfrag|-f) ENFRAG=$2;
+				shift ;;
+                --start|-a) START=$2;
+                            shift ;; 
+                --stop|-p) STOP=$2;
+                           shift ;;
+		--type|-t)
+                	while (( "$#" >= 2 )) && ! [[ $2 == --* ]]; do
+                                TYPES+=( "$2" )
+                                shift
+                        done ;;
+                --resolution|-r)
+                        while (( "$#" >= 2 )) && ! [[ $2 == --* ]] && ! [[ $2 == -* ]]; do
+                                RESOLUTION+=( "$2" )
+                                shift
+                        done ;;
+                --version|-v) version ; exit 2 ;;
+                --help|-h) help; exit 2 ;;
+                *)
+                echo option \'$1\' not understood!
+                echo use 3CHTGTS-Tri --help to see correct usage!
+                exit 2
+                ;;
+                esac
+        shift
+done
+
+
+if [[ -z "$INPUTS" || -z "$OUTPUT" || -z "$BS" || -z "$CHROMSIZE" || -z "$BAITCHROMID" || -z "$ENFRAG" || -z "$TYPES" || -z "$START" || -z "$STOP" ]]; then
+            usage
+                exit
+fi
+
+
+echo -e "Input: "${INPUTS[@]}
+echo -e "Output: "$OUTPUT
+echo -e "BAIT_STARTING: "$BS
+echo -e "CHROMSIZE: "$CHROMSIZE
+echo -e "BAITCHROMID: "$BAITCHROMID
+echo -e "ENFRAG:"$ENFRAG
+echo -e "START: "$START
+echo -e "STOP: "$STOP
+echo -e "TYPES: "${TYPES[@]}
+echo -e "BIN_SIZE: "${RESOLUTION[@]}
+
+
+
+###################
+## Run 3C-HTGTS_Tri
+###################
+## Creat raw and normalized sparse matrix as like hicpro for three-way interaction
+
+## method one: one enzyme fragment per read for 3C-HTGTS signal that from multi-fragment matrix result
+c1D_PerCell () {
+	# parameter adjusted, just one parameter needed
+        if [ $# -eq 0 ]  || [ $# -gt 2 ]
+        then
+		echo $@
+                echo -e "Error in parameter"
+                exit
+        fi
+	
+        local Input=`echo $INPUTS`
+        local output=`echo $OUTPUT`
+	of=`basename ${Input%.*}`
+
+	## outfile to bed; use enzyme fragment locus
+	awk -F "\t" '{OFS="\t"}{if(NF >= 4) print $3,$4}' $Input |\
+	tr -s "\t" "\n" |awk -F "[-|:]" '{OFS="\t"}{print $2,$3,$4}' |\
+	sort -k1,1 -k2,2n > $output/1D_PerCell/${of}_percell.bed
+}
+
+
+
+## method two: all valid enzyme fragment for 3C-HTGTS signal that from multi-fragment matrix result
+c1D_PerFragment () {
+        # parameter adjusted, just one parameter needed
+        # input multi matrix file
+        if [ $# -eq 0 ]  || [ $# -gt 2 ]
+        then
+                echo -e "Error in parameter"
+                exit
+        fi
+
+        local Input=`echo $INPUTS`
+        local output=`echo $OUTPUT`
+	of=`basename ${Input%.*}`
+
+        ## outfile to bed; use enzyme fragment locus
+	awk -F "\t" '{OFS="\t"}{if(NF >= 4) print $0}' $Input|cut -f 3- |\
+	awk -F "\t" '{OFS="\t"}{for (i=1;i <= NF; i++){ for (j = i+1; j <= NF; j++) print $i,$j}}' |\
+	tr -s "\t" "\n" |awk -F "[-|:]" '{OFS="\t"}{print $2,$3,$4}'|\
+	sort -k1,1 -k2,2n > $output/1D_PerFragment/${of}_perfragment.bed
+}
+
+## bed2edGraph
+## report : caculate line numbers of bed files
+
+
+## part two: three fragment file.
+## triplet element : (1) raw matrix for heatmap (HiCPro bed and matrix)
+##		     (2) bedpe file format for IGV, loop picture
+
+
+## heatmap perCell: per triplet per cell
+c2D_matrix_PerCell () {
+	# parameter adjusted, just one parameter needed
+        # input multi matrix file
+        if [ $# -eq 0 ]  || [ $# -gt 2 ]
+        then
+                echo -e "Error in parameter"
+                exit
+        fi
+
+        local Input=`echo $INPUTS`
+        local output=`echo $OUTPUT`
+	of=`basename ${Input%.*}`
+        ## outfile matrix; first two fragment per cell
+
+	awk -F "\t" '{OFS="\t"}{if(NF >= 4) print $1,$3,$4}' $Input \
+        > $output/2D_matrix_PerCell/${of}_C2D_percell.matrix
+	}
+
+## heatmap perFragment: per triplet per Fragment
+c2D_matrix_PerFragment () {
+        # parameter adjusted, just one parameter needed
+        # input multi matrix file
+        if [ $# -eq 0 ]  || [ $# -gt 2 ]
+        then
+                echo -e "Error in parameter"
+                exit
+        fi
+
+        local Input=`echo $INPUTS`
+        local output=`echo $OUTPUT`
+	of=`basename ${Input%.*}`
+        ## outfile matrix; all combination of multi-fragment
+
+        awk -F "\t" '{OFS="\t"}{if(NF >= 4) print $0}' $Input | cut -f 1,3- |\
+	awk -F "\t" '{OFS="\t"}{for (i=2;i <= NF; i++){ for (j = i+1; j <= NF; j++) print $1,$i,$j}}' \
+        > $output/2D_matrix_PerFragment/${of}_C2D_perfragment.matrix
+        }
+
+
+## main function
+## input filetered matrix directory
+for F in ${INPUTS[@]}
+do
+	echo "Input files: "$F
+	for R in ${RESOLUTION[@]}
+	do
+		echo "Bin_Size: "$R
+		for T in ${TYPES[@]}
+		do
+			echo "Type: "$T
+			case $T in
+				1D_PerCell) mkdir -p $OUTPUT/1D_PerCell/$R
+				    	of=`basename ${F%.*}`
+				    	c1D_PerCell $F
+				    	## bed fifle to bedGraph
+				    	bedtools genomecov -i $OUTPUT/1D_PerCell/${of}_percell.bed -bga -g $CHROMSIZE > ${OUTPUT}/1D_PerCell/$R/${of}_${R}_pre.bedGraph
+					bedtools intersect -wa -wb -a $ENFRAG -b ${OUTPUT}/1D_PerCell/$R/${of}_${R}_pre.bedGraph |\
+					awk -F "\t" '{OFS="\t"}{print $1,$2,$3,$7}' | bedtools sort > ${OUTPUT}/1D_PerCell/$R/${of}_${R}.bedGraph
+					## cis normalization : cpm (counts per million in cis)
+					SUM=`awk -F "\t" -v chr=$BAITCHROMID '{if($1==chr)sum+=$4};END{print sum}' ${OUTPUT}/1D_PerCell/$R/${of}_${R}.bedGraph`
+					awk -F "\t" -v chr=$BAITCHROMID -v sum=$SUM '{OFS="\t"}{if ($1 == chr) print $1,$2,$3,$4*1000000/sum}' ${OUTPUT}/1D_PerCell/$R/${of}_${R}.bedGraph > ${OUTPUT}/1D_PerCell/$R/${of}_${R}_cisCPM.bedGraph
+					;;
+				1D_PerFragment) mkdir -p $OUTPUT/1D_PerFragment/$R
+				    	of=`basename ${F%.*}`
+				    	c1D_PerFragment $F			    
+				    	## bed fifle to bedGraph
+				    	bedtools genomecov -i $OUTPUT/1D_PerFragment/${of}_perfragment.bed -bga -g $CHROMSIZE > ${OUTPUT}/1D_PerFragment/$R/${of}_${R}_pre.bedGraph
+					bedtools intersect -wa -wb -a $ENFRAG -b ${OUTPUT}/1D_PerFragment/$R/${of}_${R}_pre.bedGraph |\
+					awk -F "\t" '{OFS="\t"}{print $1,$2,$3,$7}' | bedtools sort > ${OUTPUT}/1D_PerFragment/$R/${of}_${R}.bedGraph 
+					## cis normalization : cpm (counts per million in cis)
+                                        SUM=`awk -F "\t" -v chr=$BAITCHROMID '{if($1==chr)sum+=$4};END{print sum}' ${OUTPUT}/1D_PerFragment/$R/${of}_${R}.bedGraph`
+                                        awk -F "\t" -v chr=$BAITCHROMID -v sum=$SUM '{OFS="\t"}{if ($1 == chr) print $1,$2,$3,$4*1000000/sum}' ${OUTPUT}/1D_PerFragment/$R/${of}_${R}.bedGraph > ${OUTPUT}/1D_PerFragment/$R/${of}_${R}_cisCPM.bedGraph
+					;;
+				2D_PerCell) mkdir -p $OUTPUT/2D_matrix_PerCell/HiCPro/$R $OUTPUT/2D_matrix_PerCell/BEDPE/$R
+				    	of=`basename ${F%.*}`
+				    	## transfer multi-interaction to triplet
+				    	c2D_matrix_PerCell $F
+				    	## tranfer matrix to spare matrix the same as hicpro
+				    	echo $OUTPUT/2D_matrix_PerCell/${of}_C2D_percell.matrix
+				    	## eval ${Matrix2HicPro}
+				    	Matrix2Hicpro.py -m $OUTPUT/2D_matrix_PerCell/${of}_C2D_percell.matrix -i $BAITCHROMID -b $R -c $CHROMSIZE -o $OUTPUT/2D_matrix_PerCell/HiCPro/$R -a $START -p $STOP
+				    	## sort  hicpro matrix
+				    	cat $OUTPUT/2D_matrix_PerCell/HiCPro/$R/${of}_C2D_percell_${R}.raw.matrix |\
+				    	sort -t $'\t' -k 1n -k 2n > $OUTPUT/2D_matrix_PerCell/HiCPro/$R/${of}_C2D_percell_${R}_raw.matrix
+				    	cat $OUTPUT/2D_matrix_PerCell/HiCPro/$R/${of}_C2D_percell_${R}.norm.matrix |\
+                                    	sort -t $'\t' -k 1n -k 2n > $OUTPUT/2D_matrix_PerCell/HiCPro/$R/${of}_C2D_percell_${R}_norm.matrix
+				   	rm $OUTPUT/2D_matrix_PerCell/HiCPro/$R/*.*.matrix
+				    	## 2D matrix to bedpe file, triplet pets, based on enzyme fragment or bin
+				    	eval "3CHTGTSMatrix2bedpe.py -i $OUTPUT/2D_matrix_PerCell/${of}_C2D_percell.matrix -o $OUTPUT/2D_matrix_PerCell/BEDPE/$R -b $R"
+					;;
+				2D_PerFragment) mkdir -p $OUTPUT/2D_matrix_PerFragment/HiCPro/$R $OUTPUT/2D_matrix_PerFragment/BEDPE/$R
+				    	of=`basename ${F%.*}`
+				    	## transfer multi-interaction to triplets
+				    	c2D_matrix_PerFragment $F
+				    	## tranfer matrix to spare matrix the same as hicpro
+			            	echo $OUTPUT/2D_matrix_PerFragment/${of}_C2D_perfragment.matrix
+				    	## eval ${Matrix2Hicpro.py}
+				    	Matrix2Hicpro.py -m $OUTPUT/2D_matrix_PerFragment/${of}_C2D_perfragment.matrix -i $BAITCHROMID -b $R -c $CHROMSIZE -o $OUTPUT/2D_matrix_PerFragment/HiCPro/$R -a $START -p $STOP
+				    	## sort hicpro matrix
+				    	cat $OUTPUT/2D_matrix_PerFragment/HiCPro/$R/${of}_C2D_perfragment_${R}.raw.matrix |\
+				    	sort -t $'\t' -k 1n -k 2n > $OUTPUT/2D_matrix_PerFragment/HiCPro/$R/${of}_C2D_perfragment_${R}_raw.matrix
+				    	cat $OUTPUT/2D_matrix_PerFragment/HiCPro/$R/${of}_C2D_perfragment_${R}.norm.matrix |\
+                                    	sort -t $'\t' -k 1n -k 2n > $OUTPUT/2D_matrix_PerFragment/HiCPro/$R/${of}_C2D_perfragment_${R}_norm.matrix
+				    	rm $OUTPUT/2D_matrix_PerFragment/HiCPro/$R/*.*.matrix
+				    	## 2D matrix to bedpe file, triplet pets, based on enzyme fragment or bin
+				    	eval "3CHTGTSMatrix2bedpe.py -i $OUTPUT/2D_matrix_PerFragment/${of}_C2D_perfragment.matrix -o $OUTPUT/2D_matrix_PerFragment/BEDPE/$R -b $R"
+					;;
+				*) echo step name \" $opt \" not understood!
+			   	echo used 3C-HTGTS_Tri --help to see correct usage!
+			   	exit;;
+			esac
+		done
+	done
+done

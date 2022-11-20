@@ -1,0 +1,395 @@
+#!/bin/bash
+
+## 3CHTGTS-Report
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for Tri-3C-HTGTS report.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-Report'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -c BaitChromosome [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : input rawdata directory; Suffix of file: fastq, fastq.gz, fq, fq.gz"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+	echo -e "\t\t -c|--baitchr BAITCHR : the chromosome of bait : <chr14>;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR -c chr14" 
+        echo
+	exit;
+}
+
+function version {
+	echo -e "$SOFT version $VERSION"
+	exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--baitchr") set -- "$@" "-c" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *) set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:c:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR="$OPTARG";;
+	c) CHR="$OPTARG";; 
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" || -z "$CHR" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUTDIR
+echo -e "Output Directory : "$OUTPUTDIR
+echo -e "The chromosome Of Bait : "$CHR
+
+
+if [ -d $OUTPUTDIR ]
+then
+        echo "The output directory exists: "$OUTPUTDIR
+else
+        mkdir -p $OUTPUTDIR
+fi
+
+
+###################
+## Run 3CHTGTS-QC
+###################
+## Main function
+## Determine the suffix of fastq file
+Suffix=`basename $(ls -d $INPUTDIR/*/*1.{fastq,fq,fq.gz,fastq.gz} 2>/dev/null | head -n 1) | cut -d . -f 2-`
+case $Suffix in
+fastq | fastq.gz | fq | fq.gz)
+	echo -e "fastq file formate is right" ;;
+\?)
+	echo -e "fastq file is wrong"
+	help
+	exit 1 ;;
+esac
+
+## List R1 reads
+ls $INPUTDIR/*/*1.${Suffix} > $OUTPUTDIR/R.list
+
+## Check file
+INT2=`echo ${INPUTDIR%/*}`
+Bait_CHR=`echo $CHR`
+
+while read F
+do
+	## Part 1: Read files
+        FN=`echo ${F##*/}|cut -d _ -f 1`
+        echo $FN        
+        # Step1: Reads Pairs that contain both Nest_PCR_Primer and Adaptor
+        Step1="$INT2/01_PreProcess/Step1/*/${FN}.log"
+	if [[ -z $Step1 ]]; then
+		echo -e "File do not exit: $Step1"
+		break
+	fi	
+
+        # Step2: R1 and R2 merge
+        Step2="$INT2/01_PreProcess/Step2/*/${FN}*_log.txt"
+	if [[ -z $Step2 ]]; then
+                echo -e "File do not exit: $Step2"
+                break
+        fi
+	
+        # Step3: 5' MboI Fragment from first three fragment
+        Frag1="$INT2/01_PreProcess/Step3/*/${FN}_P5_1_Report"
+	if [[ -z $Frag1 ]]; then
+                echo -e "File do not exit: $Frag1"
+                break
+        fi
+	
+	Frag2="$INT2/01_PreProcess/Step3/*/${FN}_P5_2_Report"
+        if [[ -z $Frag2 ]]; then
+                echo -e "File do not exit: $Frag2"
+                break
+        fi
+
+        Frag3="$INT2/01_PreProcess/Step3/*/${FN}_P5_3_Report"
+        if [[ -z $Frag3 ]]; then
+                echo -e "File do not exit: $Frag3"
+                break
+        fi
+
+        # Mapping Report
+        Align_Report1="$INT2/02_Map/${FN}_P5_1_Report"
+	if [[ -z $Align_Report1 ]]; then
+                echo -e "File do not exit: $Align_Report1"
+                break
+        fi
+
+        Align_Report2="$INT2/02_Map/${FN}_P5_2_Report"
+        if [[ -z $Align_Report2 ]]; then
+                echo -e "File do not exit: $Align_Report2"
+                break
+        fi
+
+        Align_Report3="$INT2/02_Map/${FN}_P5_3_Report"
+        if [[ -z $Align_Report3 ]]; then
+                echo -e "File do not exit: $Align_Report3"
+                break
+        fi
+
+        # On_Target 
+        On_target1="$INT2/03_Filter/Step3-OnT/*/${FN}_P5_1.bed"
+	if [[ -z $On_target1 ]]; then
+                echo -e "File do not exit: $On_target1"
+                break
+        fi
+
+        On_target2="$INT2/03_Filter/Step3-OnT/*/${FN}_P5_2.bed"
+        if [[ -z $On_target2 ]]; then
+                echo -e "File do not exit: $On_target2"
+                break
+        fi
+
+        On_target3="$INT2/03_Filter/Step3-OnT/*/${FN}_P5_3.bed"
+        if [[ -z $On_target3 ]]; then
+                echo -e "File do not exit: $On_target3"
+                break
+        fi
+
+        Mapped1="$INT2/03_Filter/Step2/${FN}_P5_1.bed"
+	if [[ -z $Mapped1 ]]; then
+                echo -e "File do not exit: $Mapped1"
+                break
+        fi
+
+        Mapped2="$INT2/03_Filter/Step2/${FN}_P5_2.bed"
+        if [[ -z $Mapped2 ]]; then
+                echo -e "File do not exit: $Mapped2"
+                break
+        fi
+
+        Mapped3="$INT2/03_Filter/Step2/${FN}_P5_3.bed"
+        if [[ -z $Mapped3 ]]; then
+                echo -e "File do not exit: $Mapped3"
+                break
+        fi
+
+
+        # Self-ligation Ratio
+        OFF_Self1="$INT2/03_Filter/Step4-SL/*/${FN}_P5_1.bed"
+	if [[ -z $OFF_Self1 ]]; then
+                echo -e "File do not exit: $OFF_Self1"
+                break
+        fi
+
+        OFF_Self2="$INT2/03_Filter/Step4-SL/*/${FN}_P5_2.bed"
+        if [[ -z $OFF_Self2 ]]; then
+                echo -e "File do not exit: $OFF_Self2"
+                break
+        fi
+
+        OFF_Self3="$INT2/03_Filter/Step4-SL/*/${FN}_P5_3.bed"
+        if [[ -z $OFF_Self3 ]]; then
+                echo -e "File do not exit: $OFF_Self3"
+                break
+        fi
+
+
+        ## Part 2: Write out
+        echo "====="$FN"=====" > $OUTPUTDIR/${FN}_state.txt
+	echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Reads Pairs that contain both Nest_PCR_Primer and Adaptor_Primer <==">> $OUTPUTDIR/${FN}_state.txt
+        grep -A 6 "Summary" $Step1 |tail -n 5 >> $OUTPUTDIR/${FN}_state.txt
+
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Pear merge R1 and R2 <==" >> $OUTPUTDIR/${FN}_state.txt
+        grep -w -A 2 'Assembled reads ' $Step2 >> $OUTPUTDIR/${FN}_state.txt
+
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> 5' MboI Fragment <==" >> $OUTPUTDIR/${FN}_state.txt
+	echo "==> First Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        grep -A 5 "Summary" $Frag1 |tail -n 4 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Second Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        grep -A 5 "Summary" $Frag2 |tail -n 4 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Third Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        grep -A 5 "Summary" $Frag3 |tail -n 4 >> $OUTPUTDIR/${FN}_state.txt	
+
+
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Alignment Report <==" >> $OUTPUTDIR/${FN}_state.txt
+	echo "==> First Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        head -n 6 $Align_Report1 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Second Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        head -n 6 $Align_Report2 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Third Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        head -n 6 $Align_Report3 >> $OUTPUTDIR/${FN}_state.txt
+
+        ## Part 3: On_Target Reads in uniq mapping reads
+        Mapped_Reads1=`wc -l $Mapped1 | cut -d " " -f 1`
+        Mapped_Reads2=`wc -l $Mapped2 | cut -d " " -f 1`
+        Mapped_Reads3=`wc -l $Mapped3 | cut -d " " -f 1`
+
+        On_Target_Reads1=`wc -l $On_target1 | cut -d " " -f 1`
+        On_Target_Reads2=`wc -l $On_target2 | cut -d " " -f 1`
+        On_Target_Reads3=`wc -l $On_target3 | cut -d " " -f 1`
+
+        On_Target_Ratio1=`echo "scale=4;$On_Target_Reads1/$Mapped_Reads1" | bc`
+        On_Target_Ratio2=`echo "scale=4;$On_Target_Reads2/$Mapped_Reads2" | bc`
+        On_Target_Ratio3=`echo "scale=4;$On_Target_Reads3/$Mapped_Reads3" | bc`
+
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> On_Target Ratio <==" >> $OUTPUTDIR/${FN}_state.txt
+	echo "==> First Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Uniq mapped Reads number: "$Mapped_Reads1 >> $OUTPUTDIR/${FN}_state.txt
+        echo "On_Target uniq mapped reads number: "$On_Target_Reads1 >> $OUTPUTDIR/${FN}_state.txt
+        echo "On_Target ratio: "$On_Target_Ratio1 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Second Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Uniq mapped Reads number: "$Mapped_Reads2 >> $OUTPUTDIR/${FN}_state.txt
+        echo "On_Target uniq mapped reads number: "$On_Target_Reads2 >> $OUTPUTDIR/${FN}_state.txt
+        echo "On_Target ratio:"$On_Target_Ratio2 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Third Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Uniq mapped Reads number: "$Mapped_Reads3 >> $OUTPUTDIR/${FN}_state.txt
+        echo "On_Target uniq mapped reads number: "$On_Target_Reads3 >> $OUTPUTDIR/${FN}_state.txt
+        echo "On_Target ratio: "$On_Target_Ratio3 >> $OUTPUTDIR/${FN}_state.txt
+
+        ## Part 4: Self-Ligation Ratio
+        OFF_Self_Reads1=`wc -l $OFF_Self1 | cut -d " " -f 1`
+        OFF_Self_Reads2=`wc -l $OFF_Self2 | cut -d " " -f 1`
+        OFF_Self_Reads3=`wc -l $OFF_Self3 | cut -d " " -f 1`
+
+        OFF_Ratio1=`echo "scale=4;1-$OFF_Self_Reads1/$On_Target_Reads1"|bc`
+        OFF_Ratio2=`echo "scale=4;1-$OFF_Self_Reads2/$On_Target_Reads2"|bc`
+        OFF_Ratio3=`echo "scale=4;1-$OFF_Self_Reads3/$On_Target_Reads3"|bc`
+
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "==> Self-Ligation Ratio <==" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> First Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "Not self-ligation Reads: "$OFF_Self_Reads1 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "Self-Ligation Ratio: "$OFF_Ratio1 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Second Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "Not self-ligation Reads: "$OFF_Self_Reads2 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "Self-Ligation Ratio: "$OFF_Ratio2 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Third Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "Not self-ligation Reads: "$OFF_Self_Reads3 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "Self-Ligation Ratio: "$OFF_Ratio3 >> $OUTPUTDIR/${FN}_state.txt
+
+        ## Part 5: Cis/trans Ratio in On_Target and removing Self-Ligation reads
+        Cis_Reads1=`grep -w $Bait_CHR $OFF_Self1 | wc -l`
+        Trans_Reads1=`grep -w -v "$Bait_CHR" $OFF_Self1 | wc -l`
+        Cis_Reads2=`grep -w $Bait_CHR $OFF_Self2 | wc -l`
+        Trans_Reads2=`grep -w -v "$Bait_CHR" $OFF_Self2 | wc -l`
+        Cis_Reads3=`grep -w $Bait_CHR $OFF_Self3 | wc -l`
+        Trans_Reads3=`grep -w -v "$Bait_CHR" $OFF_Self3 | wc -l`
+
+        Cis_Ratio1=`echo "scale=4;$Cis_Reads1/$OFF_Self_Reads1"|bc`
+        Trans_Ratio1=`echo "scale=4;$Trans_Reads1/$OFF_Self_Reads1"|bc`
+        Cis_Ratio2=`echo "scale=4;$Cis_Reads2/$OFF_Self_Reads2"|bc`
+        Trans_Ratio2=`echo "scale=4;$Trans_Reads2/$OFF_Self_Reads2"|bc`
+        Cis_Ratio3=`echo "scale=4;$Cis_Reads3/$OFF_Self_Reads3"|bc`
+        Trans_Ratio3=`echo "scale=4;$Trans_Reads3/$OFF_Self_Reads3"|bc`
+
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Cis/Trans mapping Ratio <==" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> First Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Cis uniq mapped reads number: "$Cis_Reads1 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Cis uniq mapped ratio: "$Cis_Ratio1 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Trans uniq mapped reads number: "$Trans_Reads1 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Trans uniq mapped ratio: "$Trans_Ratio1 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Second Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Cis uniq mapped reads number: "$Cis_Reads2 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Cis uniq mapped ratio: "$Cis_Ratio2 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Trans uniq mapped reads number: "$Trans_Reads2 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Trans uniq mapped ratio: "$Trans_Ratio2 >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Third Fragment" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Cis uniq mapped reads number: "$Cis_Reads3 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Cis uniq mapped ratio: "$Cis_Ratio3 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Trans uniq mapped reads number: "$Trans_Reads3 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Trans uniq mapped ratio: "$Trans_Ratio3 >> $OUTPUTDIR/${FN}_state.txt
+
+	## Part 6: First three fragments uniq mapped read radio compare to total reads
+	Total=`head -n 1 $Align_Report1 |cut -d ' ' -f 1`
+	Frag1_Ratio=`echo "scale=4;$Mapped_Reads1/$Total" | bc`
+        Frag2_Ratio=`echo "scale=4;$Mapped_Reads2/$Total" | bc`
+        Frag3_Ratio=`echo "scale=4;$Mapped_Reads3/$Total" | bc`
+        Tri_fragment_Ratio=`echo "scale=4;$OFF_Self_Reads3/$Total" | bc`
+	Cis_Ratio=`echo "scale=4;$Cis_Reads3/$OFF_Self_Reads3"|bc`
+	
+	echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==>  First three fragments uniq mapped read radio <==" >> $OUTPUTDIR/${FN}_state.txt
+        echo "==> Total reads: "$Total >> $OUTPUTDIR/${FN}_state.txt
+        echo "Uniq mapped reads number for first fragment: "$Mapped_Reads1 >> $OUTPUTDIR/${FN}_state.txt
+	echo "Uniq mapped reads number for second fragment: "$Mapped_Reads2 >> $OUTPUTDIR/${FN}_state.txt
+        echo "Uniq mapped reads number for third fragment: "$Mapped_Reads3 >> $OUTPUTDIR/${FN}_state.txt
+	echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+	echo "First fragments uniq mapped read radio: "$Frag1_Ratio >> $OUTPUTDIR/${FN}_state.txt
+        echo "Second fragments uniq mapped read radio: "$Frag2_Ratio >> $OUTPUTDIR/${FN}_state.txt
+        echo "Third fragments uniq mapped read radio: "$Frag3_Ratio >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+        echo "Tri-fragment read radio after removing self-ligation: "$Tri_fragment_Ratio >> $OUTPUTDIR/${FN}_state.txt
+        echo -e "\n" >> $OUTPUTDIR/${FN}_state.txt
+	echo "Cis Tri-fragment read radio after removing self-ligation: "$Cis_Ratio >> $OUTPUTDIR/${FN}_state.txt
+done < $OUTPUTDIR/R.list
+
+rm $OUTPUTDIR/R.list 

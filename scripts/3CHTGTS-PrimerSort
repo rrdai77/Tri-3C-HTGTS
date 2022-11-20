@@ -1,0 +1,137 @@
+#!/bin/bash
+
+## 3CHTGTS-PrimerSort
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for sorting reads pairs that contain Nested Primer and Adapter Primer, also Nested Primer and Adapter Primer cutting.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-PrimerSort'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -n NestedPrimer -a AdapterPrimer [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : input data directory;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+	echo -e "\t\t -n|--nestedprimer NestedPrimer : Nested Primer sequence;"
+	echo -e "\t\t -a|--adapterprimer AdapterPrimer : Adapter Primer sequence;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  3CHTGTS-PrimerSort -i INPUTDIR -o OUTPUTDIR -n NestedPrimer -a AdapterPrimer" 
+        echo
+	exit;
+}
+
+function version {
+	echo -e "$SOFT version $VERSION"
+        exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+
+## Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--nestedprimer") set -- "$@" "-n" ;;
+      "--adapterprimer") set -- "$@" "-a";;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:n:a:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR=$OPTARG;;
+	n) NestedPrimer=$OPTARG;;
+	a) AdapterPrimer=$OPTARG;;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" || -z "$NestedPrimer" || -z "$AdapterPrimer" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input directory : "$INPUTDIR
+echo -e "Output directory : "$OUTPUTDIR
+echo -e "Nested Primer : "$NestedPrimer
+echo -e "Adapter Primer : "$AdapterPrimer
+
+
+###################
+## Run 3CHTGTS-PrimerSort
+###################
+mkdir -p $OUTPUTDIR
+Thread=6
+
+## List paired-end reads 
+ls $INPUTDIR/*/*R1.fastq > $OUTPUTDIR/R1.list
+ls $INPUTDIR/*/*R2.fastq > $OUTPUTDIR/R2.list
+paste -d , $OUTPUTDIR/R1.list $OUTPUTDIR/R2.list > $OUTPUTDIR/R1_R2.list
+
+## Main function
+while read F
+do
+        R1=`echo ${F} | cut -d , -f 1`
+        R2=`echo ${F} | cut -d , -f 2`
+        DIR=`echo ${R1##*/} |cut -d _ -f 1`
+        mkdir -p $OUTPUTDIR/$DIR
+        cutadapt  -j $Thread -g $NestedPrimer \
+                -G $AdapterPrimer \
+                -m 30 --overlap 10 \
+                -o $OUTPUTDIR/$DIR/${DIR}_R1.fastq \
+                -p $OUTPUTDIR/$DIR/${DIR}_R2.fastq \
+                --discard-untrimmed --pair-filter=any \
+                $R1 $R2 > $OUTPUTDIR/$DIR/${DIR}.log
+done < $OUTPUTDIR/R1_R2.list
+

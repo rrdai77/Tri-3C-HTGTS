@@ -1,0 +1,117 @@
+#!/bin/bash
+
+## 3CHTGTS-ContinueRemove
+## Copyright (c) 2020 
+## Author(s): Ranran Dai
+## Contact: dairrsmu@163.com
+## This script is used for removing continue fragment in raw matrix.
+## See the LICENCE file for details
+
+
+SOFT='3CHTGTS-ContinueRemove'
+VERSION='1.0.0'
+
+## usage 
+function usage (){
+        echo -e "Usage : $SOFT -i INPUTDIR -o OUTPUTDIR -b BAITFID [-h] [-v]"
+        echo -e "Usage option -h|--help for more information"
+}
+
+## function help
+function help {
+        echo
+        echo "$SOFT $VERSION"
+        echo "--------------"
+        echo "OPTIONS"
+        echo
+        echo -e "\t\t -i|--input INPUTDIR : input data directory;"
+        echo -e "\t\t -o|--output OUTPUTDIR : output data directory;"
+	echo -e "\t\t -b|--baitfid BAITFID : enzyme fragment ID of bait : <chr12_539073>;"
+        echo -e "\t\t [-h|--help]: help;"
+        echo -e "\t\t [-v|--version]: version"
+        echo "--------------"
+        echo "Example:"
+        echo -e "\t\t  $SOFT -i INPUTDIR -o OUTPUTDIR -b BAITFID" 
+	echo
+        exit;
+}
+
+function version {
+	echo -e "$SOFT version $VERSION"
+	exit;
+}
+
+function opts_error {
+	echo -e "Error : invalid parameters !" >&2
+	echo -e "Use $SOFT -h for help"
+	exit;
+}
+
+#####################
+## Inputs
+#####################
+if [ $# -lt 1 ]
+then
+    usage
+    exit
+fi
+
+# Transform long options to short ones
+for arg in "$@"; do
+  shift
+  case "$arg" in
+      "--input") set -- "$@" "-i" ;;
+      "--output") set -- "$@" "-o" ;;
+      "--baitfid") set -- "$@" "-b" ;;
+      "--help")   set -- "$@" "-h" ;;
+      "--version")   set -- "$@" "-v" ;;
+      *)        set -- "$@" "$arg"
+  esac
+done
+
+
+while getopts ":i:o:b:vh" OPT
+do
+    case $OPT in
+        i) INPUTDIR="$OPTARG";;
+        o) OUTPUTDIR="$OPTARG";;
+	b) BAITFID="$OPTARG";;
+        v) version ;;
+        h) help ;;
+        \?)
+             echo "Invalid option: -$OPTARG" >&2
+             usage
+             exit 1
+             ;;
+         :)
+             echo "Option -$OPTARG requires an argument." >&2
+             usage
+             exit 1
+             ;;
+    esac
+done
+
+if [[ -z "$INPUTDIR" || -z "$OUTPUTDIR" || -z "$BAITFID" ]]; then
+    usage
+    exit
+fi
+
+
+echo -e "Input Directory : "$INPUTDIR
+echo -e "Output Directory : "$OUTPUTDIR
+echo -e "Enzyme Fragment ID Of Bait : "$BAITFID
+
+
+###################
+## Run 3CHTGTS-ContinueRemove
+###################
+mkdir -p $OUTPUTDIR
+
+## Main function
+for F in `ls -d $INPUTDIR/*`
+do	
+	DIR=`echo ${F##*/}`
+	mkdir -p $OUTPUTDIR/$DIR
+
+	ContinueRemove.noF0.py -i $F/${DIR}_raw.matrix -o ${OUTPUTDIR}/$DIR/$DIR -b $BAITFID
+done
