@@ -36,7 +36,7 @@ This pipeline has a number of dependencies including the following:
 - Pear (v0.9.6);
 - Bowtie2 (v2.4.5);
 - SAMtools (v1.9);
-- Bedtools (v2.29.2);
+- Bedtools (v2.29.2)
 
 ## Installation
 ### Linux / Mac
@@ -122,9 +122,92 @@ chr7    145441459
 
 ```
 
-- Copy and edit the configuration file 'config-Tri-3C-HTGTS.txt' in your local folder. See the manual for details about the configuration file
+### Configuration file information
+- Copy and edit the configuration file 'config-Tri-3C-HTGTS.txt' in your local folder. An example, the details about the configuration file are as follows:
+```
+## Config information for Tri-3C-HTGTS
 
 
+######## Part one: Genome file check ########
+
+## Common dna restriction enzyme name: MboI, NlaIII
+First_enzyme_name = MboI
+
+## Enzyme cut site lable as "^"
+EnzymeSite = ^GATC
+
+## Reference genome name
+Ref_nam = mm10
+
+## Reference genome fasta file
+Ref_Fa = PATH/genome.fasta
+
+## Path of fasta file of genome enzyme-digested
+Reduced_genome_Fa = PATH/genome-MboI.fasta
+FRAGID = PATH/genome-MboI.bed
+
+## Path of bed file of enzyme digested DNA fragment location in genome
+ENFRAG = PATH/genome-MboI_Loci.bed
+
+## Bowtie2 index path
+RefIndex = PATH/genome-MboI_Index 
+
+## Path of chromosome size file
+CHROMSIZE = PATH/genome.sizes.txt
+
+
+######## Part two: Input ########
+
+## Nest Primer sequence
+NestPrimer = CTTGTTCTGATTGGATGGCGA
+
+## Adapter Primer sequence
+AdapterPrimer = GACTATAGGGCACGCGTGG
+
+## Max cpus numbers used in this software
+Thread = 16
+
+
+
+######## Part three: Output ########
+
+## Type of Analysis : 1D_PerCell, 1D_PerFragment, 2D_PerCell or 2D_PerFragment
+TYPES =  1D_PerCell 1D_PerFragment 2D_PerCell 2D_PerFragment
+
+## Resolution for triplet-interaction sparse matrix
+BIN_SIZE = 1000 3000 5000 10000 
+
+## Start coordinate and stop coordinate for local plot
+START = 52420000
+STOP = 55030000
+
+######## Data ########
+PAIR1_EXT = _1
+PAIR2_EXT = _2
+
+####### Rawdata ######
+RAW_DIR = rawdata
+
+```
+
+### Put all input files in a named rawdata folder. The input files have to be organized with one folder per sample, such as:
+```
+rawdata
+    sample1
+        sample1_R1.fastq.gz
+        sample1_R2.fastq.gz
+    sample2
+        sample2_R1.fastq.gg
+        sample2_R2.fastq.gz
+    *   ...
+
+```
+
+### Run Tri-3C-HTGTS
+```
+    MY_INSTALL_PATH/bin/Tri-3C-HTGTS_pro -i FULL_PATH_TO_DATA_FOLDER -o FULL_PATH_TO_OUTPUTS -c MY_LOCAL_CONFIG_FILE
+
+```
 
 
 
