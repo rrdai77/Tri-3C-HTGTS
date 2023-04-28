@@ -30,13 +30,13 @@ competition of the proximal Vα genes and the Jα genes for interacting with the
 # How to install it ?
 ## Software
 This pipeline has a number of dependencies including the following:
-1) python (3.7);
-2) fastp (0.20.0);
-3) Cutadapt (v1.18);
-4) Pear (v0.9.6);
-5) Bowtie2 (v2.4.5);
-6) SAMtools (v1.9);
-7) Bedtools (v2.29.2);
+- python (3.7);
+- fastp (0.20.0);
+- Cutadapt (v1.18);
+- Pear (v0.9.6);
+- Bowtie2 (v2.4.5);
+- SAMtools (v1.9);
+- Bedtools (v2.29.2);
 
 ## Installation
 ### Linux / Mac
@@ -80,6 +80,7 @@ Example:
                  
 ```
 
+- Copy and edit the configuration file 'config-hicpro.txt' in your local folder. See the manual for details about the configuration file
 
 
 
