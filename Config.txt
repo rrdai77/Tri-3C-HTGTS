@@ -1,4 +1,4 @@
-## Config information for Tri-3CHTGTS
+## Config information for Tri-3C-HTGTS
 
 
 ######## Part one: Genome file check ########
@@ -13,19 +13,20 @@ EnzymeSite = ^GATC
 Ref_nam = mm10
 
 ## Reference genome fasta file
-Ref_Fa = /sdc1/home/lzq/Pipline/NGS/Data/Ref/mm10/mm10.fasta
+Ref_Fa = PATH/genome.fasta
 
-## Path of fasta file of genome enzyme-digested
-Reduced_genome_Fa = /sdc1/home/lzq/Pipline/NGS/Data/Ref_4C/Mouse/mm10/MboI/mm10-MboI.fa
+## Path of fasta file of genome enzyme-digested and BED file
+Reduced_genome_Fa = PATH/genome-MboI.fasta
+FRAGID = PATH/genome-MboI.bed
 
-## Path of bed file of enzyme digested DNA fragment location in genome
-ENFRAG = /sdc1/home/lzq/Pipline/NGS/Data/Ref_4C/Mouse/mm10/MboI/mm10-MboI_Loci.bed
+## Path of the first three columns of BED file of enzyme-digested DNA fragments
+ENFRAG = PATH/genome-MboI_Loci.bed
 
 ## Bowtie2 index path
-RefIndex = /sdc1/home/lzq/Pipline/NGS/Data/Ref_4C/Mouse/mm10/MboI/mm10-MboI_Index/mm10-MboI_Index 
+RefIndex = PATH/genome-MboI_Index 
 
 ## Path of chromosome size file
-CHROMSIZE = /sdc1/home/lzq/Pipline/NGS/Data/Ref/mm10/mm10.sizes.genome
+CHROMSIZE = PATH/genome.sizes.txt
 
 
 ######## Part two: Input ########
@@ -37,8 +38,7 @@ NestPrimer = CTTGTTCTGATTGGATGGCGA
 AdapterPrimer = GACTATAGGGCACGCGTGG
 
 ## Max cpus numbers used in this software
-Thread = 6
-
+Thread = 16
 
 
 ######## Part three: Output ########
@@ -50,12 +50,14 @@ TYPES =  1D_PerCell 1D_PerFragment 2D_PerCell 2D_PerFragment
 BIN_SIZE = 1000 3000 5000 10000 
 
 ## Start coordinate and stop coordinate for local plot
-START = 53740000
-STOP = 54300000
+START = 52420000
+STOP = 55030000
+
 
 ######## Data ########
 PAIR1_EXT = _1
 PAIR2_EXT = _2
+
 
 ####### Rawdata ######
 RAW_DIR = rawdata
