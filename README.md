@@ -31,6 +31,7 @@ competition of the proximal Vα genes and the Jα genes for interacting with the
 ## Software
 This pipeline has a number of dependencies including the following:
 - python (3.7);
+- seqtk (1.3-r106);
 - fastp (0.20.0);
 - Cutadapt (v1.18);
 - Pear (v0.9.6);
