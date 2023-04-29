@@ -83,18 +83,6 @@ Example:
 ## Data Preparation
 ### Annotation Files
 In order to process the raw data, Tri-3C-HTGTS requires three annotation files. 
-- A BED file of the restriction fragments after digestion. This file depends both of the restriction enzyme and the reference genome. See the FAQ and the digest_genome.py script of Tri-3C-HTGTS utilities for details about how to generate this file. A few annotation files are provided with the Tri-3C-HTGTS sources as examples.
-```
-chr1    0       3000190 HIC_chr1_1      0       +
-chr1    3000190 3000812 HIC_chr1_2      0       +
-chr1    3000812 3001047 HIC_chr1_3      0       +
-chr1    3001047 3001118 HIC_chr1_4      0       +
-chr1    3001118 3001794 HIC_chr1_5      0       +
-chr1    3001794 3003208 HIC_chr1_6      0       +
-chr1    3003208 3003262 HIC_chr1_7      0       +
-(...)
-
-```
 - A fasta reference genome file from the UCSC genome browser.
 - A BED file of the restriction fragments after digestion. This file depends both of the restriction enzyme and the reference genome. See the [FAQ](https://github.com/nservant/HiC-Pro/blob/master/doc/FAQ.md) and the digest_genome.py script of Tri-3C-HTGTS utilities for details about how to generate this file. This bed file is provided with the Tri-3C-HTGTS sources as examples.
 ```
@@ -107,8 +95,19 @@ chr1    3001794 3003208 HIC_chr1_6      0       +
 chr1    3003208 3003262 HIC_chr1_7      0       +
 
 ```
-- A fasta file of the restriction fragments after digestion. This file can be created from the enzyme-digested bed file by using 'bedtools getfasta' command.
+- A fasta file of the restriction fragments after digestion. This file can be created from the enzyme-digested BED file by using 'bedtools getfasta' command.
 - The bowtie2 indexes of this fasta file of the restriction fragments after digestion. See the [bowtie2 manual page](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) for details about how to create such indexes.
+- The first three columns of the BED file of the restriction fragments after digestion. This BED file is given as examples.
+```
+chr1    0       3000190
+chr1    3000190 3000812
+chr1    3000812 3001047
+chr1    3001047 3001118
+chr1    3001118 3001794
+chr1    3001794 3003208
+chr1    3003208 3003262
+(...)
+```
 - A table file of chromosomes' size. This file can be easily find on the UCSC genome browser.
 ```
 chr1    195471971
@@ -168,7 +167,6 @@ AdapterPrimer = GACTATAGGGCACGCGTGG
 Thread = 16
 
 
-
 ######## Part three: Output ########
 
 ## Type of Analysis : 1D_PerCell, 1D_PerFragment, 2D_PerCell or 2D_PerFragment
@@ -181,9 +179,11 @@ BIN_SIZE = 1000 3000 5000 10000
 START = 52420000
 STOP = 55030000
 
+
 ######## Data ########
 PAIR1_EXT = _1
 PAIR2_EXT = _2
+
 
 ####### Rawdata ######
 RAW_DIR = rawdata
