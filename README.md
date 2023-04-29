@@ -10,17 +10,17 @@ For any question about Tri-3C-HTGTS, please contact dairrsmu@163.com
  This Tri-3C-HTGTS repository provides support for analyzing multi-way chromatin interactions of 3C-HTGTS data from raw fastq files (paired-end Illumina data) to normalized contact maps. For raw contact matrices correction, these interaction counts are normalized for a total of 1,000,000 interactions at the same resolutions. Similar to HiC-Pro, Tri-3C-HTGTS can use phasing data to build contact maps. It only supports the 3C-HTGTS protocols, including digestion protocol.
  Tri-3C-HTGTS is sequential and each step of the workflow can be run independantly.
  Its code contains several steps:
- 1) 3CHTGTS-QC;
- 2) 3CHTGTS-PrimerSort;
- 3) 3CHTGTS-Merge;
- 4) 3CHTGTS-LoopCut;
- 5) 3CHTGTS-Map;
- 6) 3CHTGTS-Filter;
- 7) 3CHTGTS-Extract;
- 8) 3CHTGTS-ToMatrix;
- 9) 3CHTGTS-ContinueRemove;
- 10) 3CHTGTS-Tri;
- 11) 3CHTGTS-Report
+ 1\) 3CHTGTS-QC;
+ 2\) 3CHTGTS-PrimerSort;
+ 3\) 3CHTGTS-Merge;
+ 4\) 3CHTGTS-LoopCut;
+ 5\) 3CHTGTS-Map;
+ 6\) 3CHTGTS-Filter;
+ 7\) 3CHTGTS-Extract;
+ 8\) 3CHTGTS-ToMatrix;
+ 9\) 3CHTGTS-ContinueRemove;
+ 10\) 3CHTGTS-Tri;
+ 11\) 3CHTGTS-Report
 
 # Citation
  If you use HiC-Pro, please cite :
@@ -85,7 +85,7 @@ Example:
 ### Annotation Files
 In order to process the raw data, Tri-3C-HTGTS requires three annotation files. 
 - A fasta reference genome file from the UCSC genome browser.
-- A BED file of the restriction fragments after digestion. This file depends both of the restriction enzyme and the reference genome. See the [FAQ](https://github.com/nservant/HiC-Pro/blob/master/doc/FAQ.md) and the digest_genome.py script of Tri-3C-HTGTS utilities for details about how to generate this file. This bed file is provided with the Tri-3C-HTGTS sources as examples.
+- A BED file of the restriction fragments after digestion. This file depends both of the restriction enzyme and the reference genome. See the 'reduced_genome' command of Tri-3C-HTGTS utilities for details about how to generate this file. This bed file is provided with the Tri-3C-HTGTS sources as examples.
 ```
 chr1    0       3000190 HIC_chr1_1      0       +
 chr1    3000190 3000812 HIC_chr1_2      0       +
