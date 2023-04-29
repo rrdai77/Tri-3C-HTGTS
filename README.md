@@ -30,9 +30,9 @@ For any question about Tri-3C-HTGTS, please contact dairrsmu@163.com
 # How to install it ?
 ## Software
 This pipeline has a number of dependencies including the following:
-- python (3.7);
-- seqtk (1.3-r106);
-- fastp (0.20.0);
+- python (v3.7);
+- seqtk (v1.3-r106);
+- fastp (v0.20.0);
 - Cutadapt (v1.18);
 - Pear (v0.9.6);
 - Bowtie2 (v2.4.5);
