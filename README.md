@@ -93,11 +93,11 @@ chr1    3001047 3001118 HIC_chr1_4      0       +
 chr1    3001118 3001794 HIC_chr1_5      0       +
 chr1    3001794 3003208 HIC_chr1_6      0       +
 chr1    3003208 3003262 HIC_chr1_7      0       +
-
+(...)
 ```
 - A fasta file of the restriction fragments after digestion. This file can be created from the enzyme-digested BED file by using 'bedtools getfasta' command.
 - The bowtie2 indexes of this fasta file of the restriction fragments after digestion. See the [bowtie2 manual page](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) for details about how to create such indexes.
-- The first three columns of the BED file of the restriction fragments after digestion. This BED file is given as examples.
+- A BED file contained the first three columns of BED file of restriction fragments after digestion. This BED file is given as examples.
 ```
 chr1    0       3000190
 chr1    3000190 3000812
@@ -118,7 +118,6 @@ chr5    151834684
 chr6    149736546
 chr7    145441459
 (...)
-
 ```
 
 ### Configuration file information
@@ -141,11 +140,11 @@ Ref_nam = mm10
 ## Reference genome fasta file
 Ref_Fa = PATH/genome.fasta
 
-## Path of fasta file of genome enzyme-digested
+## Path of fasta file of genome enzyme-digested and BED file
 Reduced_genome_Fa = PATH/genome-MboI.fasta
 FRAGID = PATH/genome-MboI.bed
 
-## Path of bed file of enzyme digested DNA fragment location in genome
+## Path of the first three columns of BED file of enzyme-digested DNA fragments
 ENFRAG = PATH/genome-MboI_Loci.bed
 
 ## Bowtie2 index path
@@ -187,7 +186,6 @@ PAIR2_EXT = _2
 
 ####### Rawdata ######
 RAW_DIR = rawdata
-
 ```
 
 ### Put all input files in a named rawdata folder. The input files have to be organized with one folder per sample, such as:
@@ -200,13 +198,11 @@ rawdata
         sample2_R1.fastq.gg
         sample2_R2.fastq.gz
     *   ...
-
 ```
 
 ### Run Tri-3C-HTGTS
 ```
     MY_INSTALL_PATH/bin/Tri-3C-HTGTS_pro -i FULL_PATH_TO_DATA_FOLDER -o FULL_PATH_TO_OUTPUTS -c MY_LOCAL_CONFIG_FILE
-
 ```
 
 
