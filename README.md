@@ -43,8 +43,14 @@ This pipeline has a number of dependencies including the following:
 ### Linux / Mac
 Open terminal and type following:
 ```
-tar -zxvf 
-
+tar -zxvf Tri-3C-HTGTS-1.0.0.tar.gz
+## Edit .bashrc file for environment configuration
+echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0' >> ~/.bashrc 
+echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0/bin' >> ~/.bashrc 
+echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0/scripts' >> ~/.bashrc 
+echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0/bin/utils' >> ~/.bashrc
+## Activate .bashrc file 
+source ~/.bashrc
 ```
 
 # How to use it ?
