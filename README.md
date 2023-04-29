@@ -6,9 +6,9 @@ For any question about Tri-3C-HTGTS, please contact dairrsmu@163.com
  Tri-3C-HTGTS is a analysis pipeline designed to process multi-way chromatin interactions of 3C-HTGTS data.
  
 # Introduction
- The 3C-HTGTS is a method combined the chromosome conformation capture (3C) and high-throughput genome-wide translocation sequencing (HTGTS), which provides high resolution and reproducible interaction profiles of a bait locale of interest with whole genome ([Jain, S. et al., Cell, 2018](https://www.sciencedirect.com/science/article/pii/S009286741830566X?via%3Dihub)).
- This Tri-3C-HTGTS repository provides support for analyzing multi-way chromatin interactions of 3C-HTGTS data from raw fastq files (paired-end Illumina data) to normalized contact maps. For raw contact matrices correction, these interaction counts are normalized for a total of 1,000,000 interactions at the same resolutions. Similar to HiC-Pro, Tri-3C-HTGTS can use phasing data to build contact maps. It only supports the 3C-HTGTS protocols, including digestion protocols.
- Tri-3C-HTGTS is sequential and each step of the workflow can be run independantly.
+ The 3C-HTGTS is a method combined the chromosome conformation capture (3C) and high-throughput genome-wide translocation sequencing (HTGTS), which provides high resolution and reproducible interaction profiles of a bait locale of interest with whole genome ([Jain, S. et al., Cell, 2018](https://www.sciencedirect.com/science/article/pii/S009286741830566X?via%3Dihub)).   
+ This Tri-3C-HTGTS repository provides support for analyzing multi-way chromatin interactions of 3C-HTGTS data from raw fastq files (paired-end Illumina data) to normalized contact maps. For raw contact matrices correction, these interaction counts are normalized for a total of 1,000,000 interactions at the same resolutions. Similar to HiC-Pro, Tri-3C-HTGTS can use phasing data to build contact maps. It only supports the 3C-HTGTS protocols, including digestion protocols.  
+ Tri-3C-HTGTS is sequential and each step of the workflow can be run independantly.  
  Its code contains several steps:
  1\) 3CHTGTS-QC;
  2\) 3CHTGTS-PrimerSort;
