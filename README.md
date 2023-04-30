@@ -128,7 +128,7 @@ chr7    145441459
 ```
 
 ### Configuration file information
-- Copy and edit the configuration file 'config-Tri-3C-HTGTS.txt' in your local folder. An example, the details about the configuration file are as follows:
+- Copy and edit the configuration file 'Config.txt' in your local folder. An example, the details about the configuration file are as follows:
 ```
 ## Config information for Tri-3C-HTGTS
 
@@ -145,20 +145,20 @@ EnzymeSite = ^GATC
 Ref_nam = mm10
 
 ## Reference genome fasta file
-Ref_Fa = PATH/genome.fasta
+Ref_Fa = MY_LOCAL_PATH/genome.fasta
 
 ## Path of fasta file of genome enzyme-digested and BED file
-Reduced_genome_Fa = PATH/genome-MboI.fasta
-FRAGID = PATH/genome-MboI.bed
+Reduced_genome_Fa = MY_LOCAL_PATH/genome-MboI.fasta
+FRAGID = MY_LOCAL_PATH/genome-MboI.bed
 
 ## Path of the first three columns of BED file of enzyme-digested DNA fragments
-ENFRAG = PATH/genome-MboI_Loci.bed
+ENFRAG = MY_LOCAL_PATH/genome-MboI_Loci.bed
 
 ## Bowtie2 index path
-RefIndex = PATH/genome-MboI_Index 
+RefIndex = MY_LOCAL_PATH/genome-MboI_Index 
 
 ## Path of chromosome size file
-CHROMSIZE = PATH/genome.sizes.txt
+CHROMSIZE = MY_LOCAL_PATH/genome.sizes.txt
 
 
 ######## Part two: Input ########
