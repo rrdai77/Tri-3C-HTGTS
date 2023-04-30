@@ -45,10 +45,10 @@ Open terminal and type following:
 ```
 tar -zxvf Tri-3C-HTGTS-1.0.0.tar.gz
 ## Edit .bashrc file for environment configuration
-echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0' >> ~/.bashrc 
-echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0/bin' >> ~/.bashrc 
-echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0/scripts' >> ~/.bashrc 
-echo 'export PATH=$PATH:PATH/Tri-3C-HTGTS-1.0.0/bin/utils' >> ~/.bashrc
+echo 'export PATH=$PATH:MY_INSTALL_PATH/Tri-3C-HTGTS-1.0.0' >> ~/.bashrc 
+echo 'export PATH=$PATH:MY_INSTALL_PATH/Tri-3C-HTGTS-1.0.0/bin' >> ~/.bashrc 
+echo 'export PATH=$PATH:MY_INSTALL_PATH/Tri-3C-HTGTS-1.0.0/scripts' >> ~/.bashrc 
+echo 'export PATH=$PATH:MY_INSTALL_PATH/Tri-3C-HTGTS-1.0.0/bin/utils' >> ~/.bashrc
 ## Activate .bashrc file 
 source ~/.bashrc
 ```
@@ -89,7 +89,7 @@ Example:
 
 ## Data Preparation
 ### Annotation Files
-In order to process the raw data, Tri-3C-HTGTS requires three annotation files. 
+In order to process the raw data, Tri-3C-HTGTS requires six annotation files. 
 - A fasta reference genome file from the UCSC genome browser.
 - A BED file of the restriction fragments after digestion. This file depends both of the restriction enzyme and the reference genome. See the 'reduced_genome' command of Tri-3C-HTGTS utilities for details about how to generate this file. This bed file is provided with the Tri-3C-HTGTS sources as examples.
 ```
@@ -197,6 +197,7 @@ RAW_DIR = rawdata
 
 ### Put all input files in a named rawdata folder. The input files have to be organized with one folder per sample, such as:
 ```
+Config.txt
 rawdata
     sample1
         sample1_R1.fastq.gz
