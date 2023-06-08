@@ -1,6 +1,6 @@
 Find documentation and examples at https://github.com/rrdai77/Tri-3C-HTGTS/
 
-For any question about Tri-3C-HTGTS, please contact dairrsmu@163.com
+For any question about Tri-3C-HTGTS, please contact haobt123@smu.edu.com or dairrsmu@163.com
 
 # Tri-3C-HTGTS
  Tri-3C-HTGTS is a analysis pipeline designed to process multi-way chromatin interactions of 3C-HTGTS data.
@@ -24,8 +24,7 @@ For any question about Tri-3C-HTGTS, please contact dairrsmu@163.com
 
 # Citation
  If you use HiC-Pro, please cite :  
- Ranran Dai, Yongchang Zhu, Zhaoqiang Li, Litao Qin, Nan Liu, Shixiu Liao, Bingtao Hao. High-order chromatin structure of the mouse Tcra-Tcrd locus reveals the
- competition of the proximal Vα genes and the Jα genes for interacting with the enhancer Eα. Nucleic Acids Research 2023.
+ Ranran Dai, Yongchang Zhu, Zhaoqiang Li, Litao Qin, Nan Liu, Shixiu Liao, Bingtao Hao. Three-way contact analysis characterizes the higher-order organization of the Tcra locus.
 
 # How to install it ?
 ## Software
